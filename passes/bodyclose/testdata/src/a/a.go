@@ -5,7 +5,7 @@ import (
 )
 
 func f1() {
-	_, _ = http.Get("http://example.com/") // want "response body must be closed"
+	//_, _ = http.Get("http://example.com/") // want "response body must be closed"
 }
 
 func f2() {

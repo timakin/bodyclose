@@ -8,6 +8,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
 	"golang.org/x/tools/go/ssa"
+	"log"
 	"strconv"
 )
 
@@ -29,9 +30,9 @@ const (
 
 type runner struct {
 	pass      *analysis.Pass
-	iterObj   types.Object
-	iterNamed *types.Named
-	iterTyp   *types.Pointer
+	resObj   types.Object
+	resNamed *types.Named
+	resTyp   *types.Pointer
 	closeMthd  *types.Func
 	skipFile  map[*ast.File]bool
 }
@@ -41,21 +42,24 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 	r.pass = pass
 	funcs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
 
-	r.iterObj = analysisutil.LookupFromImports(pass.Pkg.Imports(), nethttpPath, "Response")
-	if r.iterObj == nil {
+	r.resObj = analysisutil.LookupFromImports(pass.Pkg.Imports(), nethttpPath, "Response")
+	if r.resObj == nil {
 		// skip checking
 		return nil, nil
 	}
 
-	iterNamed, ok := r.iterObj.Type().(*types.Named)
+	log.Printf("%+v", r.resObj)
+
+	resNamed, ok := r.resObj.Type().(*types.Named)
 	if !ok {
 		return nil, fmt.Errorf("cannot find http.Response")
 	}
-	r.iterNamed = iterNamed
-	r.iterTyp = types.NewPointer(r.iterNamed)
+	log.Printf("resNamed: %+v", r.resNamed)
+	r.resNamed = resNamed
+	r.resTyp = types.NewPointer(r.resNamed)
 
-	for i := 0; i < r.iterNamed.NumMethods(); i++ {
-		mthd := r.iterNamed.Method(i)
+	for i := 0; i < r.resNamed.NumMethods(); i++ {
+		mthd := r.resNamed.Method(i)
 		switch mthd.Id() {
 		case "Close":
 			r.closeMthd = mthd
@@ -91,7 +95,7 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		return false
 	}
 
-	if !types.Identical(call.Type(), r.iterTyp) {
+	if !types.Identical(call.Type(), r.resTyp) {
 		return false
 	}
 
