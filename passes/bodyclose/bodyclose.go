@@ -1,6 +1,8 @@
 package bodyclose
 
 import (
+	"go/types"
+	"go/ast"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
 )
@@ -20,3 +22,12 @@ const (
 	nethttpPath = "net/http"
 )
 
+
+type runner struct {
+	pass      *analysis.Pass
+	iterObj   types.Object
+	iterNamed *types.Named
+	iterTyp   *types.Pointer
+	closeMthd  *types.Func
+	skipFile  map[*ast.File]bool
+}
