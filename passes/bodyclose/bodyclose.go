@@ -14,7 +14,7 @@ import (
 var Analyzer = &analysis.Analyzer{
 	Name: "bodyclose",
 	Doc:  Doc,
-	//Run:  new(runner).run,
+	Run:  new(runner).run,
 	Requires: []*analysis.Analyzer{
 		buildssa.Analyzer,
 	},

@@ -13,6 +13,6 @@ func f2() {
 	if err != nil {
 		// handle error
 	}
-	defer resp.Body.Close() // ok
+	defer resp.Body.Close() // OK
 }
 
