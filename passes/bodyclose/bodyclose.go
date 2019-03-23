@@ -41,7 +41,7 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 	r.pass = pass
 	funcs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
 
-	r.iterObj = analysisutil.LookupFromImports(pass.Pkg.Imports(), nethttpPath, "Response.Body")
+	r.iterObj = analysisutil.LookupFromImports(pass.Pkg.Imports(), nethttpPath, "Response")
 	if r.iterObj == nil {
 		// skip checking
 		return nil, nil
