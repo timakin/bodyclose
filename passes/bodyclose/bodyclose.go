@@ -1,14 +1,15 @@
 package bodyclose
 
 import (
-	"github.com/gostaticanalysis/analysisutil"
 	"go/ast"
 	"go/types"
+	"log"
+	"strconv"
+
+	"github.com/gostaticanalysis/analysisutil"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
 	"golang.org/x/tools/go/ssa"
-	"log"
-	"strconv"
 )
 
 var Analyzer = &analysis.Analyzer{
@@ -26,16 +27,14 @@ const (
 	nethttpPath = "net/http"
 )
 
-
 type runner struct {
-	pass      *analysis.Pass
-	resObj   types.Object
+	pass   *analysis.Pass
+	resObj types.Object
 	//resNamed *types.Named
 	//resTyp   *types.Pointer
 	//closeMthd  *types.Func
-	skipFile  map[*ast.File]bool
+	skipFile map[*ast.File]bool
 }
-
 
 func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 	r.pass = pass
@@ -104,13 +103,14 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	log.Printf("df.Call.Value: %+v", df.Call.Value)
 
 	log.Printf("df.Parent(): %+v", df.Parent())
-		for _, instr := range  b.Instrs[i:] {
-			log.Printf("instr: %+v", instr)
-					switch instr := instr.(type) {
-					default:
-						log.Printf("instrt: %+v", instr)
-					}
+	for _, instr := range b.Instrs[i:] {
+		log.Printf("instr: %+v", instr)
+		switch instr := instr.(type) {
+		default:
+			log.Printf("instrt: %+v", instr)
 		}
+	}
+
 	call, ok := b.Instrs[i].(*ssa.Call)
 	if !ok {
 		return false
@@ -132,6 +132,7 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	//
 	//return true
 }
+
 //
 //func (r *runner) callCloseIn(instrs []ssa.Instruction, call *ssa.Call) bool {
 //	for _, instr := range instrs {
