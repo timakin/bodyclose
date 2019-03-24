@@ -1,10 +1,9 @@
 package bodyclose
 
 import (
-	"fmt"
-	"go/types"
-	"go/ast"
 	"github.com/gostaticanalysis/analysisutil"
+	"go/ast"
+	"go/types"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
 	"golang.org/x/tools/go/ssa"
@@ -31,9 +30,9 @@ const (
 type runner struct {
 	pass      *analysis.Pass
 	resObj   types.Object
-	resNamed *types.Named
-	resTyp   *types.Pointer
-	closeMthd  *types.Func
+	//resNamed *types.Named
+	//resTyp   *types.Pointer
+	//closeMthd  *types.Func
 	skipFile  map[*ast.File]bool
 }
 
@@ -48,30 +47,32 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 		return nil, nil
 	}
 
-	log.Printf("%+v", r.resObj)
-
-	resNamed, ok := r.resObj.Type().(*types.Named)
-	if !ok {
-		return nil, fmt.Errorf("cannot find http.Response")
-	}
-	log.Printf("resNamed: %+v", r.resNamed)
-	r.resNamed = resNamed
-	r.resTyp = types.NewPointer(r.resNamed)
-
-	for i := 0; i < r.resNamed.NumMethods(); i++ {
-		mthd := r.resNamed.Method(i)
-		switch mthd.Id() {
-		case "Close":
-			r.closeMthd = mthd
-		}
-	}
-	if r.closeMthd == nil {
-		return nil, fmt.Errorf("cannot find http.Response.Body.Close")
-	}
+	//log.Printf("%+v", r.resObj)
+	//
+	//resNamed, ok := r.resObj.Type().(*types.Named)
+	//if !ok {
+	//	return nil, fmt.Errorf("cannot find http.Response")
+	//}
+	//log.Printf("resNamed: %+v", resNamed)
+	//r.resNamed = resNamed
+	//r.resTyp = types.NewPointer(r.resNamed)
+	//log.Printf("r.resTyp: %+v", r.resTyp)
+	//log.Printf("r.resNamed.Obj(): %+v", 	r.resNamed.Obj())
+	//
+	//for i := 0; i < r.resNamed.NumMethods(); i++ {
+	//	mthd := r.resNamed.Method(i)
+	//	switch mthd.Id() {
+	//	case "Close":
+	//		r.closeMthd = mthd
+	//	}
+	//}
+	//if r.closeMthd == nil {
+	//	return nil, fmt.Errorf("cannot find http.Response.Body.Close")
+	//}
 
 	r.skipFile = map[*ast.File]bool{}
 	for _, f := range funcs {
-		if r.noImportedSpanner(f) {
+		if r.noImportedNetHTTP(f) {
 			// skip this
 			continue
 		}
@@ -79,7 +80,7 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 		for _, b := range f.Blocks {
 			for i := range b.Instrs {
 				pos := b.Instrs[i].Pos()
-				if	r.isopen(b, i) {
+				if r.isopen(b, i) {
 					pass.Reportf(pos, "response body must be closed")
 				}
 			}
@@ -90,83 +91,105 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
+	log.Printf("b.Instrs[i]: %+v", b.Instrs[i])
+	df, ok := b.Instrs[i].(*ssa.Defer)
+	if !ok {
+		return false
+	}
+
+	log.Printf("df.Call: %+v", df.Call)
+	log.Printf("df.Call.Signature().Recv(): %+v", df.Call.Signature().Recv())
+	log.Printf("df.Call.Method.Name(): %+v", df.Call.Method.Name())
+	log.Printf("df.Call.Value.Type(): %+v", df.Call.Value.Type())
+	log.Printf("df.Call.Value: %+v", df.Call.Value)
+
+	log.Printf("df.Parent(): %+v", df.Parent())
+		for _, instr := range  b.Instrs[i:] {
+			log.Printf("instr: %+v", instr)
+					switch instr := instr.(type) {
+					default:
+						log.Printf("instrt: %+v", instr)
+					}
+		}
 	call, ok := b.Instrs[i].(*ssa.Call)
 	if !ok {
 		return false
 	}
 
-	if !types.Identical(call.Type(), r.resTyp) {
-		return false
-	}
-
-	if r.callCloseIn(b.Instrs[i:], call) {
-		return false
-	}
-
-	if r.callCloseInSuccs(b, call, map[*ssa.BasicBlock]bool{}) {
-		return false
-	}
-
-	return true
-}
-
-func (r *runner) callCloseIn(instrs []ssa.Instruction, call *ssa.Call) bool {
-	for _, instr := range instrs {
-		switch instr := instr.(type) {
-		case ssa.CallInstruction:
-			fn := instr.Common().StaticCallee()
-			args := instr.Common().Args
-			if fn != nil && fn.Package() != nil &&
-				(fn.RelString(fn.Package().Pkg) == "(*Response).Body.Close" &&
-					types.Identical(fn.Signature, r.closeMthd.Type())) &&
-				len(args) != 0 && call == args[0] {
-				return true
-			}
-		}
-	}
+	log.Printf("call: %+v", call)
 	return false
+	//if !types.Identical(call.Type(), r.resTyp) {
+	//	return false
+	//}
+	//
+	//if r.callCloseIn(b.Instrs[i:], call) {
+	//	return false
+	//}
+	//
+	//if r.callCloseInSuccs(b, call, map[*ssa.BasicBlock]bool{}) {
+	//	return false
+	//}
+	//
+	//return true
 }
+//
+//func (r *runner) callCloseIn(instrs []ssa.Instruction, call *ssa.Call) bool {
+//	for _, instr := range instrs {
+//		switch instr := instr.(type) {
+//		case ssa.CallInstruction:
+//			fn := instr.Common().StaticCallee()
+//			args := instr.Common().Args
+//			if fn != nil && fn.Package() != nil &&
+//				(fn.RelString(fn.Package().Pkg) == "(*Response).Body.Close" &&
+//					types.Identical(fn.Signature, r.closeMthd.Type())) &&
+//				len(args) != 0 && call == args[0] {
+//				return true
+//			}
+//		}
+//	}
+//	return false
+//}
+//
+//func (r *runner) callCloseInSuccs(b *ssa.BasicBlock, call *ssa.Call, done map[*ssa.BasicBlock]bool) bool {
+//	if done[b] {
+//		return false
+//	}
+//	done[b] = true
+//
+//	if len(b.Succs) == 0 {
+//		return r.isReturnIter(b.Instrs, call)
+//	}
+//
+//	for _, s := range b.Succs {
+//		if !r.callCloseIn(s.Instrs, call) &&
+//			!r.callCloseInSuccs(s, call, done) {
+//			return false
+//		}
+//	}
+//
+//	return true
+//}
+//
+//func (r *runner) isReturnIter(instrs []ssa.Instruction, call *ssa.Call) bool {
+//	if len(instrs) == 0 {
+//		return false
+//	}
+//
+//	ret, isRet := instrs[len(instrs)-1].(*ssa.Return)
+//	if !isRet {
+//		return false
+//	}
+//
+//	for _, r := range ret.Results {
+//		if r == call {
+//			return true
+//		}
+//	}
+//
+//	return false
+//}
 
-func (r *runner) callCloseInSuccs(b *ssa.BasicBlock, call *ssa.Call, done map[*ssa.BasicBlock]bool) bool {
-	if done[b] {
-		return false
-	}
-	done[b] = true
-
-	if len(b.Succs) == 0 {
-		return r.isReturnIter(b.Instrs, call)
-	}
-
-	for _, s := range b.Succs {
-		if !r.callCloseIn(s.Instrs, call) &&
-			!r.callCloseInSuccs(s, call, done) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (r *runner) isReturnIter(instrs []ssa.Instruction, call *ssa.Call) bool {
-	if len(instrs) == 0 {
-		return false
-	}
-
-	ret, isRet := instrs[len(instrs)-1].(*ssa.Return)
-	if !isRet {
-		return false
-	}
-
-	for _, r := range ret.Results {
-		if r == call {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (r *runner) noImportedSpanner(f *ssa.Function) (ret bool) {
+func (r *runner) noImportedNetHTTP(f *ssa.Function) (ret bool) {
 	obj := f.Object()
 	if obj == nil {
 		return false
