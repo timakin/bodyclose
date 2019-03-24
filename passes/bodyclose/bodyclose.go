@@ -91,33 +91,12 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 
 func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	log.Printf("b.Instrs[i]: %+v", b.Instrs[i])
-	df, ok := b.Instrs[i].(*ssa.Defer)
-	if !ok {
+
+	if r.callDeferIn(b.Instrs[i]) {
 		return false
 	}
 
-	log.Printf("df.Call: %+v", df.Call)
-	log.Printf("df.Call.Signature().Recv(): %+v", df.Call.Signature().Recv())
-	log.Printf("df.Call.Method.Name(): %+v", df.Call.Method.Name())
-	log.Printf("df.Call.Value.Type(): %+v", df.Call.Value.Type())
-	log.Printf("df.Call.Value: %+v", df.Call.Value)
-
-	log.Printf("df.Parent(): %+v", df.Parent())
-	for _, instr := range b.Instrs[i:] {
-		log.Printf("instr: %+v", instr)
-		switch instr := instr.(type) {
-		default:
-			log.Printf("instrt: %+v", instr)
-		}
-	}
-
-	call, ok := b.Instrs[i].(*ssa.Call)
-	if !ok {
-		return false
-	}
-
-	log.Printf("call: %+v", call)
-	return false
+	return true
 	//if !types.Identical(call.Type(), r.resTyp) {
 	//	return false
 	//}
@@ -131,6 +110,35 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	//}
 	//
 	//return true
+}
+func (r *runner) callDeferIn(instr ssa.Instruction) bool {
+	switch instr := instr.(type) {
+	case *ssa.Defer:
+		log.Printf("df.Call: %+v", instr.Call)
+		log.Printf("instr.Call.Signature().Recv(): %+v", instr.Call.Signature().Recv())
+		log.Printf("instr.Call.Method.Name(): %+v", instr.Call.Method.Name())
+		log.Printf("instr.Call.Value.Type(): %+v", instr.Call.Value.Type())
+		log.Printf("instr.Call.Value: %+v", instr.Call.Value)
+
+		log.Printf("instr.Parent(): %+v", instr.Parent())
+
+		//call, ok := instr.(*ssa.Call)
+		//if !ok {
+		//	return false
+		//}
+		//
+		//log.Printf("call: %+v", call)
+		//fn := instr.Common().StaticCallee()
+		//args := instr.Common().Args
+		//if fn != nil && fn.Package() != nil &&
+		//	(fn.RelString(fn.Package().Pkg) == "(*Response).Body.Close" &&
+		//		types.Identical(fn.Signature, r.closeMthd.Type())) &&
+		//	len(args) != 0 && call == args[0] {
+		//	return true
+		//}
+	}
+
+	return false
 }
 
 //
