@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"log"
 	"strconv"
 
 	"github.com/gostaticanalysis/analysisutil"
@@ -84,9 +85,15 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		for _, b := range f.Blocks {
+			if !r.containsRes(b) {
+				continue
+			}
 			for i := range b.Instrs {
-				pos := b.Instrs[i].Pos()
-				if r.isopen(b, i) {
+				if r.isopen(b) {
+					for _, instr := range b.Instrs {
+						log.Printf("%+v, parent: %+v", instr, instr.Parent())
+					}
+					pos := b.Instrs[i].Pos()
 					pass.Reportf(pos, "response body must be closed")
 				}
 			}
@@ -96,7 +103,19 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
+func (r *runner) containsRes(b *ssa.BasicBlock) bool {
+	for _, instr := range b.Instrs {
+		switch instr := instr.(type) {
+		case ssa.Value:
+			if instr.Type().String() == r.resTyp.String() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (r *runner) isopen(b *ssa.BasicBlock) bool {
 	for _, instr := range b.Instrs {
 		switch instr := instr.(type) {
 		case ssa.Value:
@@ -116,13 +135,13 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 				bRefs := *b.Referrers()
 				for _, bRef := range bRefs {
 					bOp := bRef.(*ssa.UnOp)
-					if bOp.Referrers() == nil {
-						continue
-					}
 					if bOp.Type() != r.bodyObj.Type() {
 						continue
 					}
 
+					if bOp.Referrers() == nil {
+						continue
+					}
 					ccalls := *bOp.Referrers()
 					for _, ccall := range ccalls {
 						switch ccall := ccall.(type) {
@@ -140,7 +159,6 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 			}
 		}
 	}
-
 	return true
 }
 
