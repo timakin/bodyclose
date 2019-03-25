@@ -84,9 +84,6 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		for _, b := range f.Blocks {
-			if !r.containsRes(b) {
-				continue
-			}
 			for i := range b.Instrs {
 				pos := b.Instrs[i].Pos()
 				if r.isopen(b, i) {
@@ -99,18 +96,6 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-func (r *runner) containsRes(b *ssa.BasicBlock) bool {
-	for _, instr := range b.Instrs {
-		switch instr := instr.(type) {
-		case ssa.Value:
-			if instr.Type().String() == r.resTyp.String() {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	val, ok := b.Instrs[i].(ssa.Value)
 	if !ok {
@@ -120,13 +105,13 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		return false
 	}
 	if val.Referrers() == nil {
-		return false
+		return true
 	}
 	resRefs := *val.Referrers()
 	for _, resRef := range resRefs {
 		b := resRef.(*ssa.FieldAddr)
 		if b.Referrers() == nil {
-			continue
+			return true
 		}
 
 		bRefs := *b.Referrers()
@@ -137,7 +122,7 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 			}
 
 			if bOp.Referrers() == nil {
-				continue
+				return true
 			}
 			ccalls := *bOp.Referrers()
 			for _, ccall := range ccalls {
@@ -155,7 +140,7 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		}
 	}
 
-	return true
+	return false
 }
 
 func (r *runner) noImportedNetHTTP(f *ssa.Function) (ret bool) {

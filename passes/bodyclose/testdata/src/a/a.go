@@ -1,6 +1,7 @@
 package a
 
 import (
+	"fmt"
 	"net/http"
 )
 
@@ -43,6 +44,21 @@ func f3() {
 }
 
 func f4() {
+	resp, err := http.Get("http://example.com/") // want "response body must be closed"
+	if err != nil {
+		// handle error
+	}
+	fmt.Print(resp.Status)
+
+	resp, err = http.Get("http://example.com/") // want "response body must be closed"
+	if err != nil {
+		// handle error
+	}
+	fmt.Print(resp.Body)
+	return
+}
+
+func f5() {
 	_, err := http.Get("http://example.com/") // want "response body must be closed"
 	if err != nil {
 		// handle error
