@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"log"
 	"strconv"
 
 	"github.com/gostaticanalysis/analysisutil"
@@ -97,20 +98,27 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
+	for _, instr := range b.Instrs {
+		log.Printf("instr: %+v", instr)
+	}
 	val, ok := b.Instrs[i].(ssa.Value)
 	if !ok {
 		return false
 	}
 	if val.Type().String() != r.resTyp.String() {
+		log.Printf("val.Type(): %+v", val.Type())
 		return false
 	}
 	if val.Referrers() == nil {
+		log.Printf("noref: %+v", val.Referrers())
 		return true
 	}
+	log.Printf("val.Referrers(): %+v", val.Referrers())
 	resRefs := *val.Referrers()
 	for _, resRef := range resRefs {
 		b := resRef.(*ssa.FieldAddr)
 		if b.Referrers() == nil {
+			log.Printf("body noref: %+v", b)
 			return true
 		}
 
@@ -122,10 +130,13 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 			}
 
 			if bOp.Referrers() == nil {
+				log.Printf("body op noref: %+v", bOp)
 				return true
 			}
+			log.Printf("body op noref: %+v", bOp)
 			ccalls := *bOp.Referrers()
 			for _, ccall := range ccalls {
+				log.Printf("ccall: %+v", ccall)
 				switch ccall := ccall.(type) {
 				case *ssa.Defer:
 					if ccall.Call.Method.Name() == r.closeMthd.Name() {
@@ -140,7 +151,9 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		}
 	}
 
-	return false
+	log.Printf("arara: %+v", b.Instrs[i])
+
+	return true
 }
 
 func (r *runner) noImportedNetHTTP(f *ssa.Function) (ret bool) {
@@ -174,3 +187,57 @@ func (r *runner) noImportedNetHTTP(f *ssa.Function) (ret bool) {
 
 	return true
 }
+
+//func f1() {
+//	resp, err := http.Get("http://example.com/")
+//	if err != nil {
+//		// handle error
+//	}
+//	resp.Body.Close() // OK
+//
+//	resp2, err := http.Get("http://example.com/")
+//	if err != nil {
+//		// handle error
+//	}
+//	resp2.Body.Close() // OK
+//}
+//
+//func f2() {
+//	resp, err := http.Get("http://example.com/")
+//	if err != nil {
+//		// handle error
+//	}
+//	body := resp.Body
+//	body.Close() // OK
+//
+//	resp2, err := http.Get("http://example.com/")
+//	body2 := resp2.Body
+//	body2.Close() // OK
+//	if err != nil {
+//		// handle error
+//	}
+//}
+//
+//func f3() {
+//	resp, err := http.Get("http://example.com/")
+//	if err != nil {
+//		// handle error
+//	}
+//	defer resp.Body.Close() // OK
+//}
+//
+//func f4() {
+//	resp, err := http.Get("http://example.com/") // want "response body must be closed"
+//	if err != nil {
+//		// handle error
+//	}
+//	fmt.Print(resp.Status)
+//
+//	resp, err = http.Get("http://example.com/") // want "response body must be closed"
+//	if err != nil {
+//		// handle error
+//	}
+//	fmt.Print(resp.Body)
+//	return
+//}
+//
