@@ -1,6 +1,7 @@
 package bodyclose
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 	"log"
@@ -30,9 +31,8 @@ const (
 type runner struct {
 	pass   *analysis.Pass
 	resObj types.Object
-	//resNamed *types.Named
-	//resTyp   *types.Pointer
-	//closeMthd  *types.Func
+	bodyObj types.Object
+	closeMthd  *types.Func
 	skipFile map[*ast.File]bool
 }
 
@@ -46,28 +46,21 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 		return nil, nil
 	}
 
-	//log.Printf("%+v", r.resObj)
-	//
-	//resNamed, ok := r.resObj.Type().(*types.Named)
-	//if !ok {
-	//	return nil, fmt.Errorf("cannot find http.Response")
-	//}
-	//log.Printf("resNamed: %+v", resNamed)
-	//r.resNamed = resNamed
-	//r.resTyp = types.NewPointer(r.resNamed)
-	//log.Printf("r.resTyp: %+v", r.resTyp)
-	//log.Printf("r.resNamed.Obj(): %+v", 	r.resNamed.Obj())
-	//
-	//for i := 0; i < r.resNamed.NumMethods(); i++ {
-	//	mthd := r.resNamed.Method(i)
-	//	switch mthd.Id() {
-	//	case "Close":
-	//		r.closeMthd = mthd
-	//	}
-	//}
-	//if r.closeMthd == nil {
-	//	return nil, fmt.Errorf("cannot find http.Response.Body.Close")
-	//}
+	resStruct, ok := r.resObj.Type().Underlying().(*types.Struct)
+	if !ok {
+		return nil, fmt.Errorf("cannot find http.Response")
+	}
+	for i := 0; i < resStruct.NumFields(); i++ {
+		field := resStruct.Field(i)
+		log.Printf("field: %+v", field)
+		switch field.Id() {
+		case "Body":
+			r.bodyObj = field
+		}
+	}
+	if r.bodyObj == nil {
+		return nil, fmt.Errorf("cannot find the object http.Response.Body")
+	}
 
 	r.skipFile = map[*ast.File]bool{}
 	for _, f := range funcs {
