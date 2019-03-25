@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
-	"log"
 	"strconv"
 
 	"github.com/gostaticanalysis/analysisutil"
@@ -91,10 +90,6 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 			for i := range b.Instrs {
 				pos := b.Instrs[i].Pos()
 				if r.isopen(b, i) {
-					for _, instr := range b.Instrs {
-						log.Printf("%+v, parent: %+v", instr, instr.Parent())
-					}
-
 					pass.Reportf(pos, "response body must be closed")
 				}
 			}
