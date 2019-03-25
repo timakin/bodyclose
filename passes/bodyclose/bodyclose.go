@@ -112,49 +112,49 @@ func (r *runner) containsRes(b *ssa.BasicBlock) bool {
 }
 
 func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
-	for _, instr := range b.Instrs {
-		switch instr := instr.(type) {
-		case ssa.Value:
-			if instr.Type().String() != r.resTyp.String() {
+	val, ok := b.Instrs[i].(ssa.Value)
+	if !ok {
+		return false
+	}
+	if val.Type().String() != r.resTyp.String() {
+		return false
+	}
+	if val.Referrers() == nil {
+		return false
+	}
+	resRefs := *val.Referrers()
+	for _, resRef := range resRefs {
+		b := resRef.(*ssa.FieldAddr)
+		if b.Referrers() == nil {
+			continue
+		}
+
+		bRefs := *b.Referrers()
+		for _, bRef := range bRefs {
+			bOp := bRef.(*ssa.UnOp)
+			if bOp.Type() != r.bodyObj.Type() {
 				continue
 			}
-			if instr.Referrers() == nil {
+
+			if bOp.Referrers() == nil {
 				continue
 			}
-			resRefs := *instr.Referrers()
-			for _, resRef := range resRefs {
-				b := resRef.(*ssa.FieldAddr)
-				if b.Referrers() == nil {
-					continue
-				}
-
-				bRefs := *b.Referrers()
-				for _, bRef := range bRefs {
-					bOp := bRef.(*ssa.UnOp)
-					if bOp.Type() != r.bodyObj.Type() {
-						continue
+			ccalls := *bOp.Referrers()
+			for _, ccall := range ccalls {
+				switch ccall := ccall.(type) {
+				case *ssa.Defer:
+					if ccall.Call.Method.Name() == r.closeMthd.Name() {
+						return false
 					}
-
-					if bOp.Referrers() == nil {
-						continue
-					}
-					ccalls := *bOp.Referrers()
-					for _, ccall := range ccalls {
-						switch ccall := ccall.(type) {
-						case *ssa.Defer:
-							if ccall.Call.Method.Name() == r.closeMthd.Name() {
-								return false
-							}
-						case *ssa.Call:
-							if ccall.Call.Method.Name() == r.closeMthd.Name() {
-								return false
-							}
-						}
+				case *ssa.Call:
+					if ccall.Call.Method.Name() == r.closeMthd.Name() {
+						return false
 					}
 				}
 			}
 		}
 	}
+
 	return true
 }
 
