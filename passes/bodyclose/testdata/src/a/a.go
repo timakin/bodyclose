@@ -13,6 +13,5 @@ func f1() {
 }
 
 func f2() {
-	//_, _ = http.Get("http://example.com/") // want "response body must be closed"
+	_, _ = http.Get("http://example.com/") // want "response body must be closed"
 }
-
