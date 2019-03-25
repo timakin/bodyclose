@@ -89,11 +89,12 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 				continue
 			}
 			for i := range b.Instrs {
-				if r.isopen(b) {
+				pos := b.Instrs[i].Pos()
+				if r.isopen(b, i) {
 					for _, instr := range b.Instrs {
 						log.Printf("%+v, parent: %+v", instr, instr.Parent())
 					}
-					pos := b.Instrs[i].Pos()
+
 					pass.Reportf(pos, "response body must be closed")
 				}
 			}
@@ -115,7 +116,7 @@ func (r *runner) containsRes(b *ssa.BasicBlock) bool {
 	return false
 }
 
-func (r *runner) isopen(b *ssa.BasicBlock) bool {
+func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	for _, instr := range b.Instrs {
 		switch instr := instr.(type) {
 		case ssa.Value:
