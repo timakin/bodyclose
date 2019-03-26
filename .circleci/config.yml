@@ -29,6 +29,7 @@ workflows:
     - go-module/download:
         executor: default
         checkout: true
+        vendoring: true
         persist-to-workspace: true
         workspace-root: /go/src/github.com/timakin/bodyclose
     - test:
