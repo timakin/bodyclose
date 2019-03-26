@@ -35,7 +35,6 @@ workflows:
         requires:
         - go-module/download
     - golangci-lint/lint:
-        executor: default
         requires:
         - go-module/download
         filters:
