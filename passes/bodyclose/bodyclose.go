@@ -122,7 +122,10 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		}
 		resRefs := *val.Referrers()
 		for _, resRef := range resRefs {
-			b := resRef.(*ssa.FieldAddr)
+			b, ok := resRef.(*ssa.FieldAddr)
+			if !ok {
+				continue
+			}
 			if b.Referrers() == nil {
 				return true
 			}

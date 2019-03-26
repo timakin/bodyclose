@@ -48,6 +48,12 @@ func f4() {
 	if err != nil {
 		// handle error
 	}
+	fmt.Print(resp)
+
+	resp, err = http.Get("http://example.com/") // want "response body must be closed"
+	if err != nil {
+		// handle error
+	}
 	fmt.Print(resp.Status)
 
 	resp, err = http.Get("http://example.com/") // want "response body must be closed"
