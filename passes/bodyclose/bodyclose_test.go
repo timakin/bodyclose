@@ -1,9 +1,10 @@
 package bodyclose_test
 
 import (
+	"testing"
+
 	"github.com/timakin/bodyclose/passes/bodyclose"
 	"golang.org/x/tools/go/analysis/analysistest"
-	"testing"
 )
 
 func Test(t *testing.T) {

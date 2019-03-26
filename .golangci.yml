@@ -3,8 +3,6 @@ linters-settings:
     check-shadowing: true
   golint:
     min-confidence: 0
-  gocyclo:
-    min-complexity: 10
   maligned:
     suggest-new: true
   dupl:
@@ -33,7 +31,10 @@ linters:
 
 run:
   skip-dirs:
-  - test/testdata_etc
+  - passes/bodyclose/testdata
+  skip-files:
+  - main.go
+  - main_go112.go
 
 issues:
   exclude-rules:
