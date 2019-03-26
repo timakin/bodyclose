@@ -109,32 +109,36 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		if !ok {
 			continue
 		}
+
 		if len(*val.Referrers()) == 0 {
 			return true
 		}
 		resRefs := *val.Referrers()
 		for _, resRef := range resRefs {
-			b, ok := resRef.(*ssa.FieldAddr)
-			if !ok {
-				continue
-			}
-			if b.Referrers() == nil {
-				return true
-			}
-
-			bRefs := *b.Referrers()
-			for _, bRef := range bRefs {
-				bOp, ok := r.getBodyOp(bRef)
-				if !ok {
-					continue
-				}
-				if len(*bOp.Referrers()) == 0 {
+			switch resRef := resRef.(type) {
+			case *ssa.Store:
+				// closures (recursive search)
+			case *ssa.Call:
+				// indirect function (recursive search)
+			case *ssa.FieldAddr:
+				if resRef.Referrers() == nil {
 					return true
 				}
-				ccalls := *bOp.Referrers()
-				for _, ccall := range ccalls {
-					if r.isCloseCall(ccall) {
-						return false
+
+				bRefs := *resRef.Referrers()
+				for _, bRef := range bRefs {
+					bOp, ok := r.getBodyOp(bRef)
+					if !ok {
+						continue
+					}
+					if len(*bOp.Referrers()) == 0 {
+						return true
+					}
+					ccalls := *bOp.Referrers()
+					for _, ccall := range ccalls {
+						if r.isCloseCall(ccall) {
+							return false
+						}
 					}
 				}
 			}
