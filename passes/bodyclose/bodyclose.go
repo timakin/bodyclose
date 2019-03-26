@@ -132,7 +132,10 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 
 			bRefs := *b.Referrers()
 			for _, bRef := range bRefs {
-				bOp := bRef.(*ssa.UnOp)
+				bOp, ok := bRef.(*ssa.UnOp)
+				if !ok {
+					continue
+				}
 				if bOp.Type() != r.bodyObj.Type() {
 					continue
 				}
