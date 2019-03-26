@@ -1,6 +1,6 @@
 // +build go1.12
 
-package bodyclose
+package main
 
 import (
 	"github.com/timakin/bodyclose/passes/bodyclose"
