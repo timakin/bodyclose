@@ -6,41 +6,41 @@ import (
 )
 
 func f1() {
-	resp, err := http.Get("http://example.com/")
+	resp, err := http.Get("http://example.com/") // OK
 	if err != nil {
 		// handle error
 	}
-	resp.Body.Close() // OK
+	resp.Body.Close()
 
-	resp2, err := http.Get("http://example.com/")
+	resp2, err := http.Get("http://example.com/") // OK
 	if err != nil {
 		// handle error
 	}
-	resp2.Body.Close() // OK
+	resp2.Body.Close()
 }
 
 func f2() {
-	resp, err := http.Get("http://example.com/")
+	resp, err := http.Get("http://example.com/") // OK
 	if err != nil {
 		// handle error
 	}
 	body := resp.Body
-	body.Close() // OK
+	body.Close()
 
-	resp2, err := http.Get("http://example.com/")
+	resp2, err := http.Get("http://example.com/") // OK
 	body2 := resp2.Body
-	body2.Close() // OK
+	body2.Close()
 	if err != nil {
 		// handle error
 	}
 }
 
 func f3() {
-	resp, err := http.Get("http://example.com/")
+	resp, err := http.Get("http://example.com/") // OK
 	if err != nil {
 		// handle error
 	}
-	defer resp.Body.Close() // OK
+	defer resp.Body.Close()
 }
 
 func f4() {
