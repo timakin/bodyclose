@@ -8,14 +8,12 @@ import (
 	"golang.org/x/tools/go/analysis/unitchecker"
 )
 
-
 // Analyzers returns analyzers of bodyclose.
 func analyzers() []*analysis.Analyzer {
 	return []*analysis.Analyzer{
 		bodyclose.Analyzer,
 	}
 }
-
 
 func main() {
 	unitchecker.Main(analyzers()...)

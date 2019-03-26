@@ -32,9 +32,6 @@ linters:
 run:
   skip-dirs:
   - passes/bodyclose/testdata
-  skip-files:
-  - main.go
-  - main_go112.go
 
 issues:
   exclude-rules:
