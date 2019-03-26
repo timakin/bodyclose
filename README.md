@@ -23,6 +23,7 @@ internal/httpclient/httpclient.go:13:13: response body must be closed
 ```
 
 When Go is lower than 1.12, just run `zagane` command with the package name (import path).
+
 But it cannot accept some options such as `--tags`.
 
 ```bash
@@ -54,4 +55,5 @@ body, err := ioutil.ReadAll(resp.Body)
 ```
 
 In the [GoDoc of Client.Do](https://golang.org/pkg/net/http/#Client.Do) this rule is clearly described.
+
 If you forget this sentence, a HTTP client cannot re-use a persistent TCP connection to the server for a subsequent "keep-alive" request.
