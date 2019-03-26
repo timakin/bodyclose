@@ -133,7 +133,6 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 				if bOp.Type() != r.bodyObj.Type() {
 					continue
 				}
-
 				if len(*bOp.Referrers()) == 0 {
 					return true
 				}
