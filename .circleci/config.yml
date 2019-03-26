@@ -39,6 +39,7 @@ workflows:
         checkout: false
         attach-workspace: true
         workspace-root: /go/src/github.com/timakin/bodyclose
+        working-directory: /go/src/github.com/timakin/bodyclose
         requires:
         - go-module/download
         filters:
