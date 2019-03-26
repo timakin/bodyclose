@@ -22,7 +22,7 @@ $ go vet -vettool=$(which bodyclose) github.com/timakin/go_api/...
 internal/httpclient/httpclient.go:13:13: response body must be closed
 ```
 
-When Go is lower than 1.12, just run `zagane` command with the package name (import path).
+When Go is lower than 1.12, just run `bodyclose` command with the package name (import path).
 
 But it cannot accept some options such as `--tags`.
 
