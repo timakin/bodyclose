@@ -59,8 +59,7 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 	}
 	for i := 0; i < resStruct.NumFields(); i++ {
 		field := resStruct.Field(i)
-		switch field.Id() {
-		case "Body":
+		if field.Id() == "Body" {
 			r.bodyObj = field
 		}
 	}
@@ -71,8 +70,7 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 	bodyItrf := bodyNamed.Underlying().(*types.Interface)
 	for i := 0; i < bodyItrf.NumMethods(); i++ {
 		bmthd := bodyItrf.Method(i)
-		switch bmthd.Id() {
-		case "Close":
+		if bmthd.Id() == "Close" {
 			r.closeMthd = bmthd
 		}
 	}
@@ -98,11 +96,8 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
-	call, ok := b.Instrs[i].(*ssa.Call)
+	call, ok := r.getReqCall(b.Instrs[i])
 	if !ok {
-		return false
-	}
-	if !strings.Contains(call.Type().String(), r.resTyp.String()) {
 		return false
 	}
 	if len(*call.Referrers()) == 0 {
@@ -110,11 +105,8 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	}
 	cRefs := *call.Referrers()
 	for _, cRef := range cRefs {
-		val, ok := cRef.(ssa.Value)
+		val, ok := r.getResVal(cRef)
 		if !ok {
-			continue
-		}
-		if val.Type().String() != r.resTyp.String() {
 			continue
 		}
 		if len(*val.Referrers()) == 0 {
@@ -132,11 +124,8 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 
 			bRefs := *b.Referrers()
 			for _, bRef := range bRefs {
-				bOp, ok := bRef.(*ssa.UnOp)
+				bOp, ok := r.getBodyOp(bRef)
 				if !ok {
-					continue
-				}
-				if bOp.Type() != r.bodyObj.Type() {
 					continue
 				}
 				if len(*bOp.Referrers()) == 0 {
@@ -144,15 +133,8 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 				}
 				ccalls := *bOp.Referrers()
 				for _, ccall := range ccalls {
-					switch ccall := ccall.(type) {
-					case *ssa.Defer:
-						if ccall.Call.Method.Name() == r.closeMthd.Name() {
-							return false
-						}
-					case *ssa.Call:
-						if ccall.Call.Method.Name() == r.closeMthd.Name() {
-							return false
-						}
+					if r.isCloseCall(ccall) {
+						return false
 					}
 				}
 			}
@@ -160,6 +142,53 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	}
 
 	return true
+}
+
+func (r *runner) getReqCall(instr ssa.Instruction) (*ssa.Call, bool) {
+	call, ok := instr.(*ssa.Call)
+	if !ok {
+		return nil, false
+	}
+	if !strings.Contains(call.Type().String(), r.resTyp.String()) {
+		return nil, false
+	}
+	return call, true
+}
+
+func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
+	val, ok := instr.(ssa.Value)
+	if !ok {
+		return nil, false
+	}
+	if val.Type().String() != r.resTyp.String() {
+		return nil, false
+	}
+	return val, true
+}
+
+func (r *runner) getBodyOp(instr ssa.Instruction) (*ssa.UnOp, bool) {
+	op, ok := instr.(*ssa.UnOp)
+	if !ok {
+		return nil, false
+	}
+	if op.Type() != r.bodyObj.Type() {
+		return nil, false
+	}
+	return op, true
+}
+
+func (r *runner) isCloseCall(ccall ssa.Instruction) bool {
+	switch ccall := ccall.(type) {
+	case *ssa.Defer:
+		if ccall.Call.Method.Name() == r.closeMthd.Name() {
+			return true
+		}
+	case *ssa.Call:
+		if ccall.Call.Method.Name() == r.closeMthd.Name() {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *runner) noImportedNetHTTP(f *ssa.Function) (ret bool) {
