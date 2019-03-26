@@ -16,8 +16,6 @@ linters-settings:
     locale: US
   lll:
     line-length: 140
-  goimports:
-    local-prefixes: github.com/golangci/golangci-lint
   gocritic:
     enabled-tags:
     - performance

@@ -35,6 +35,7 @@ workflows:
         requires:
         - go-module/download
     - golangci-lint/lint:
+        checkout: false
         attach-workspace: true
         workspace-root: /go/src/github.com/timakin/bodyclose
         requires:
