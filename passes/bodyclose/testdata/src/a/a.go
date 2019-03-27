@@ -2,6 +2,7 @@ package a
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -81,6 +82,16 @@ func f7() {
 		res.Body.Close()
 	}
 	resCloser()
+
+	res, _ = http.Get("http://example.com/") // want "response body must be closed"
+	resCloser = func() {
+		res.Body.Close()
+	}
+
+	res, _ = http.Get("http://example.com/") // want "response body must be closed"
+	resCloser = func() {
+	}
+	resCloser()
 }
 
 func f8() {
@@ -89,4 +100,30 @@ func f8() {
 		res.Body.Close()
 	}
 	resCloser(res)
+
+	res, _ = http.Get("http://example.com/") // OK
+	bodyCloser := func(b io.ReadCloser) {
+		b.Close()
+	}
+	bodyCloser(res.Body)
+
+	res, _ = http.Get("http://example.com/") // want "response body must be closed"
+	resCloser = func(res *http.Response) {
+	}
+	resCloser(res)
+
+	res, _ = http.Get("http://example.com/") // want "response body must be closed"
+	bodyCloser = func(b io.ReadCloser) {
+	}
+	bodyCloser(res.Body)
+
+	res, _ = http.Get("http://example.com/") // want "response body must be closed"
+	resCloser = func(res *http.Response) {
+		res.Body.Close()
+	}
+
+	res, _ = http.Get("http://example.com/") // want "response body must be closed"
+	bodyCloser = func(b io.ReadCloser) {
+		b.Close()
+	}
 }
