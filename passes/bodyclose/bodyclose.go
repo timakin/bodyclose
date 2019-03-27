@@ -109,32 +109,62 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		if !ok {
 			continue
 		}
+
 		if len(*val.Referrers()) == 0 {
 			return true
 		}
 		resRefs := *val.Referrers()
 		for _, resRef := range resRefs {
-			b, ok := resRef.(*ssa.FieldAddr)
-			if !ok {
-				continue
-			}
-			if b.Referrers() == nil {
-				return true
-			}
-
-			bRefs := *b.Referrers()
-			for _, bRef := range bRefs {
-				bOp, ok := r.getBodyOp(bRef)
-				if !ok {
-					continue
-				}
-				if len(*bOp.Referrers()) == 0 {
+			switch resRef := resRef.(type) {
+			case *ssa.Store: // Call in Closure function
+				if len(*resRef.Addr.Referrers()) == 0 {
 					return true
 				}
-				ccalls := *bOp.Referrers()
-				for _, ccall := range ccalls {
-					if r.isCloseCall(ccall) {
-						return false
+
+				for _, aref := range *resRef.Addr.Referrers() {
+					if c, ok := aref.(*ssa.MakeClosure); ok {
+						f := c.Fn.(*ssa.Function)
+						if r.noImportedNetHTTP(f) {
+							// skip this
+							continue
+						}
+						called := r.isClosureCalled(c)
+
+						for _, b := range f.Blocks {
+							for i := range b.Instrs {
+								return r.isopen(b, i) || !called
+							}
+						}
+					}
+
+				}
+			case *ssa.Call: // Indirect function call
+				if f, ok := resRef.Call.Value.(*ssa.Function); ok {
+					for _, b := range f.Blocks {
+						for i := range b.Instrs {
+							return r.isopen(b, i)
+						}
+					}
+				}
+			case *ssa.FieldAddr: // Normal reference to response entity
+				if resRef.Referrers() == nil {
+					return true
+				}
+
+				bRefs := *resRef.Referrers()
+				for _, bRef := range bRefs {
+					bOp, ok := r.getBodyOp(bRef)
+					if !ok {
+						continue
+					}
+					if len(*bOp.Referrers()) == 0 {
+						return true
+					}
+					ccalls := *bOp.Referrers()
+					for _, ccall := range ccalls {
+						if r.isCloseCall(ccall) {
+							return false
+						}
 					}
 				}
 			}
@@ -188,6 +218,20 @@ func (r *runner) isCloseCall(ccall ssa.Instruction) bool {
 			return true
 		}
 	}
+	return false
+}
+
+func (r *runner) isClosureCalled(c *ssa.MakeClosure) bool {
+	refs := *c.Referrers()
+	if len(refs) == 0 {
+		return false
+	}
+	for _, ref := range refs {
+		if _, ok := ref.(*ssa.Call); ok {
+			return true
+		}
+	}
+
 	return false
 }
 

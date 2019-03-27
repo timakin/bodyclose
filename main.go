@@ -8,4 +8,3 @@ import (
 )
 
 func main() { singlechecker.Main(bodyclose.Analyzer) }
-

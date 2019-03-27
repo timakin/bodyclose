@@ -74,3 +74,42 @@ func f5() {
 func f6() {
 	http.Get("http://example.com/") // want "response body must be closed"
 }
+
+func f7() {
+	res, _ := http.Get("http://example.com/") // OK
+	resCloser := func() {
+		res.Body.Close()
+	}
+	resCloser()
+}
+
+func f8() {
+	res, _ := http.Get("http://example.com/") // want "response body must be closed"
+	_ = func() {
+		res.Body.Close()
+	}
+}
+
+func f9() {
+	_ = func() {
+		res, _ := http.Get("http://example.com/") // OK
+		res.Body.Close()
+	}
+}
+
+func f10() {
+	res, _ := http.Get("http://example.com/") // OK
+	resCloser := func(res *http.Response) {
+		res.Body.Close()
+	}
+	resCloser(res)
+}
+
+func handleResponse(res *http.Response) {
+	res.Body.Close()
+}
+
+func f11() {
+	res, _ := http.Get("http://example.com/") // OK
+	handleResponse(res)
+}
