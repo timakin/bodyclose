@@ -231,7 +231,6 @@ func (r *runner) isClosureCalled(c *ssa.MakeClosure) bool {
 			return true
 		}
 	}
-
 	return false
 }
 
