@@ -82,6 +82,17 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 			continue
 		}
 
+		// skip if the function is just referenced
+		var isreffunc bool
+		for i := 0; i < f.Signature.Results().Len(); i++ {
+			if f.Signature.Results().At(i).Type().String() == r.resTyp.String() {
+				isreffunc = true
+			}
+		}
+		if isreffunc {
+			continue
+		}
+
 		for _, b := range f.Blocks {
 			for i := range b.Instrs {
 				pos := b.Instrs[i].Pos()
@@ -100,6 +111,7 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	if !ok {
 		return false
 	}
+
 	if len(*call.Referrers()) == 0 {
 		return true
 	}
@@ -186,14 +198,17 @@ func (r *runner) getReqCall(instr ssa.Instruction) (*ssa.Call, bool) {
 }
 
 func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
-	val, ok := instr.(ssa.Value)
-	if !ok {
-		return nil, false
+	switch instr := instr.(type) {
+	case *ssa.FieldAddr:
+		if instr.X.Type().String() == r.resTyp.String() {
+			return instr.X.(ssa.Value), true
+		}
+	case ssa.Value:
+		if instr.Type().String() == r.resTyp.String() {
+			return instr, true
+		}
 	}
-	if val.Type().String() != r.resTyp.String() {
-		return nil, false
-	}
-	return val, true
+	return nil, false
 }
 
 func (r *runner) getBodyOp(instr ssa.Instruction) (*ssa.UnOp, bool) {
@@ -217,6 +232,20 @@ func (r *runner) isCloseCall(ccall ssa.Instruction) bool {
 		if ccall.Call.Method.Name() == r.closeMthd.Name() {
 			return true
 		}
+	case *ssa.ChangeInterface:
+		if ccall.Type().String() == "io.Closer" {
+			closeMtd := ccall.Type().Underlying().(*types.Interface).Method(0)
+			fmt.Println(closeMtd)
+			fmt.Println(ccall.X)
+			//if f, ok := ccall.Type().(ssa.CallInstruction); ok {
+			//	for _, b := range f.Blocks {
+			//		for i := range b.Instrs {
+			//			fmt.Println(b.Instrs[i])
+			//		}
+			//	}
+			//}
+		}
+
 	}
 	return false
 }
