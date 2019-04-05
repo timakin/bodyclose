@@ -164,6 +164,7 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 				}
 
 				bRefs := *resRef.Referrers()
+
 				for _, bRef := range bRefs {
 					bOp, ok := r.getBodyOp(bRef)
 					if !ok {
@@ -235,17 +236,25 @@ func (r *runner) isCloseCall(ccall ssa.Instruction) bool {
 	case *ssa.ChangeInterface:
 		if ccall.Type().String() == "io.Closer" {
 			closeMtd := ccall.Type().Underlying().(*types.Interface).Method(0)
-			fmt.Println(closeMtd)
-			fmt.Println(ccall.X)
-			//if f, ok := ccall.Type().(ssa.CallInstruction); ok {
-			//	for _, b := range f.Blocks {
-			//		for i := range b.Instrs {
-			//			fmt.Println(b.Instrs[i])
-			//		}
-			//	}
-			//}
+			crs := *ccall.Referrers()
+			for _, cs := range crs {
+				switch cs := cs.(type) {
+				case *ssa.Defer:
+					switch val := cs.Common().Value.(type) {
+					case *ssa.Function:
+						for _, b := range val.Blocks {
+							for _, instr := range b.Instrs {
+								if c, ok := instr.(*ssa.Call); ok {
+									if c.Call.Method == closeMtd {
+										return true
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
-
 	}
 	return false
 }
