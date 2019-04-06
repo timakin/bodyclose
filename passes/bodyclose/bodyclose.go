@@ -26,7 +26,7 @@ const (
 	Doc = "bodyclose checks whether HTTP response body is closed successfully"
 
 	nethttpPath = "net/http"
-	closeMethod = closeMethod
+	closeMethod = "Close"
 )
 
 type runner struct {
