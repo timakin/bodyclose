@@ -26,6 +26,7 @@ const (
 	Doc = "bodyclose checks whether HTTP response body is closed successfully"
 
 	nethttpPath = "net/http"
+	closeMethod = "Close"
 )
 
 type runner struct {
@@ -70,7 +71,7 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 	bodyItrf := bodyNamed.Underlying().(*types.Interface)
 	for i := 0; i < bodyItrf.NumMethods(); i++ {
 		bmthd := bodyItrf.Method(i)
-		if bmthd.Id() == "Close" {
+		if bmthd.Id() == closeMethod {
 			r.closeMthd = bmthd
 		}
 	}
@@ -79,6 +80,17 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 	for _, f := range funcs {
 		if r.noImportedNetHTTP(f) {
 			// skip this
+			continue
+		}
+
+		// skip if the function is just referenced
+		var isreffunc bool
+		for i := 0; i < f.Signature.Results().Len(); i++ {
+			if f.Signature.Results().At(i).Type().String() == r.resTyp.String() {
+				isreffunc = true
+			}
+		}
+		if isreffunc {
 			continue
 		}
 
@@ -100,6 +112,7 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	if !ok {
 		return false
 	}
+
 	if len(*call.Referrers()) == 0 {
 		return true
 	}
@@ -126,15 +139,11 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 						f := c.Fn.(*ssa.Function)
 						if r.noImportedNetHTTP(f) {
 							// skip this
-							continue
+							return false
 						}
 						called := r.isClosureCalled(c)
 
-						for _, b := range f.Blocks {
-							for i := range b.Instrs {
-								return r.isopen(b, i) || !called
-							}
-						}
+						return r.calledInFunc(f, called)
 					}
 
 				}
@@ -152,6 +161,7 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 				}
 
 				bRefs := *resRef.Referrers()
+
 				for _, bRef := range bRefs {
 					bOp, ok := r.getBodyOp(bRef)
 					if !ok {
@@ -186,14 +196,17 @@ func (r *runner) getReqCall(instr ssa.Instruction) (*ssa.Call, bool) {
 }
 
 func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
-	val, ok := instr.(ssa.Value)
-	if !ok {
-		return nil, false
+	switch instr := instr.(type) {
+	case *ssa.FieldAddr:
+		if instr.X.Type().String() == r.resTyp.String() {
+			return instr.X.(ssa.Value), true
+		}
+	case ssa.Value:
+		if instr.Type().String() == r.resTyp.String() {
+			return instr, true
+		}
 	}
-	if val.Type().String() != r.resTyp.String() {
-		return nil, false
-	}
-	return val, true
+	return nil, false
 }
 
 func (r *runner) getBodyOp(instr ssa.Instruction) (*ssa.UnOp, bool) {
@@ -217,6 +230,26 @@ func (r *runner) isCloseCall(ccall ssa.Instruction) bool {
 		if ccall.Call.Method.Name() == r.closeMthd.Name() {
 			return true
 		}
+	case *ssa.ChangeInterface:
+		if ccall.Type().String() == "io.Closer" {
+			closeMtd := ccall.Type().Underlying().(*types.Interface).Method(0)
+			crs := *ccall.Referrers()
+			for _, cs := range crs {
+				if cs, ok := cs.(*ssa.Defer); ok {
+					if val, ok := cs.Common().Value.(*ssa.Function); ok {
+						for _, b := range val.Blocks {
+							for _, instr := range b.Instrs {
+								if c, ok := instr.(*ssa.Call); ok {
+									if c.Call.Method == closeMtd {
+										return true
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	return false
 }
@@ -227,7 +260,8 @@ func (r *runner) isClosureCalled(c *ssa.MakeClosure) bool {
 		return false
 	}
 	for _, ref := range refs {
-		if _, ok := ref.(*ssa.Call); ok {
+		switch ref.(type) {
+		case *ssa.Call, *ssa.Defer:
 			return true
 		}
 	}
@@ -264,4 +298,55 @@ func (r *runner) noImportedNetHTTP(f *ssa.Function) (ret bool) {
 	}
 
 	return true
+}
+
+func (r *runner) calledInFunc(f *ssa.Function, called bool) bool {
+	for _, b := range f.Blocks {
+		for i, instr := range b.Instrs {
+			switch instr := instr.(type) {
+			case *ssa.UnOp:
+				refs := *instr.Referrers()
+				if len(refs) == 0 {
+					return true
+				}
+				for _, r := range refs {
+					if v, ok := r.(ssa.Value); ok {
+						if ptr, ok := v.Type().(*types.Pointer); !ok || !isNamedType(ptr.Elem(), "io", "ReadCloser") {
+							return true
+						}
+						vrefs := *v.Referrers()
+						for _, vref := range vrefs {
+							if vref, ok := vref.(*ssa.UnOp); ok {
+								vrefs := *vref.Referrers()
+								if len(vrefs) == 0 {
+									return true
+								}
+								for _, vref := range vrefs {
+									if c, ok := vref.(*ssa.Call); ok {
+										if c.Call.Method.Name() == closeMethod {
+											return !called
+										}
+									}
+								}
+							}
+						}
+					}
+
+				}
+			default:
+				return r.isopen(b, i) || !called
+			}
+		}
+	}
+	return false
+}
+
+// isNamedType reports whether t is the named type path.name.
+func isNamedType(t types.Type, path, name string) bool {
+	n, ok := t.(*types.Named)
+	if !ok {
+		return false
+	}
+	obj := n.Obj()
+	return obj.Name() == name && obj.Pkg() != nil && obj.Pkg().Path() == path
 }
