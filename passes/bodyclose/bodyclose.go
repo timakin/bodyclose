@@ -141,10 +141,42 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 							continue
 						}
 						called := r.isClosureCalled(c)
-
 						for _, b := range f.Blocks {
-							for i := range b.Instrs {
-								return r.isopen(b, i) || !called
+							for i, instr := range b.Instrs {
+								switch instr := instr.(type) {
+								case *ssa.UnOp:
+									refs := *instr.Referrers()
+									if len(refs) == 0 {
+										return true
+									}
+									for _, r := range refs {
+										if v, ok := r.(ssa.Value); ok {
+											if ptr, ok := v.Type().(*types.Pointer); !ok || !isNamedType(ptr.Elem(), "io", "ReadCloser") {
+												return true
+											}
+											vrefs := *v.Referrers()
+											for _, vref := range vrefs {
+												switch vref := vref.(type) {
+												case *ssa.UnOp:
+													vrefs := *vref.Referrers()
+													if len(vrefs) == 0 {
+														return true
+													}
+													for _, vref := range vrefs {
+														if c, ok := vref.(*ssa.Call); ok {
+															if c.Call.Method.Name() == "Close" {
+																return !called
+															}
+														}
+													}
+												}
+											}
+										}
+
+									}
+								default:
+									return r.isopen(b, i) || !called
+								}
 							}
 						}
 					}
@@ -265,7 +297,8 @@ func (r *runner) isClosureCalled(c *ssa.MakeClosure) bool {
 		return false
 	}
 	for _, ref := range refs {
-		if _, ok := ref.(*ssa.Call); ok {
+		switch ref.(type) {
+		case *ssa.Call, *ssa.Defer:
 			return true
 		}
 	}
@@ -302,4 +335,14 @@ func (r *runner) noImportedNetHTTP(f *ssa.Function) (ret bool) {
 	}
 
 	return true
+}
+
+// isNamedType reports whether t is the named type path.name.
+func isNamedType(t types.Type, path, name string) bool {
+	n, ok := t.(*types.Named)
+	if !ok {
+		return false
+	}
+	obj := n.Obj()
+	return obj.Name() == name && obj.Pkg() != nil && obj.Pkg().Path() == path
 }
