@@ -139,46 +139,11 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 						f := c.Fn.(*ssa.Function)
 						if r.noImportedNetHTTP(f) {
 							// skip this
-							continue
+							return false
 						}
 						called := r.isClosureCalled(c)
-						for _, b := range f.Blocks {
-							for i, instr := range b.Instrs {
-								switch instr := instr.(type) {
-								case *ssa.UnOp:
-									refs := *instr.Referrers()
-									if len(refs) == 0 {
-										return true
-									}
-									for _, r := range refs {
-										if v, ok := r.(ssa.Value); ok {
-											if ptr, ok := v.Type().(*types.Pointer); !ok || !isNamedType(ptr.Elem(), "io", "ReadCloser") {
-												return true
-											}
-											vrefs := *v.Referrers()
-											for _, vref := range vrefs {
-												if vref, ok := vref.(*ssa.UnOp); ok {
-													vrefs := *vref.Referrers()
-													if len(vrefs) == 0 {
-														return true
-													}
-													for _, vref := range vrefs {
-														if c, ok := vref.(*ssa.Call); ok {
-															if c.Call.Method.Name() == closeMethod {
-																return !called
-															}
-														}
-													}
-												}
-											}
-										}
 
-									}
-								default:
-									return r.isopen(b, i) || !called
-								}
-							}
-						}
+						return r.calledInFunc(f, called)
 					}
 
 				}
@@ -333,6 +298,47 @@ func (r *runner) noImportedNetHTTP(f *ssa.Function) (ret bool) {
 	}
 
 	return true
+}
+
+func (r *runner) calledInFunc(f *ssa.Function, called bool) bool {
+	for _, b := range f.Blocks {
+		for i, instr := range b.Instrs {
+			switch instr := instr.(type) {
+			case *ssa.UnOp:
+				refs := *instr.Referrers()
+				if len(refs) == 0 {
+					return true
+				}
+				for _, r := range refs {
+					if v, ok := r.(ssa.Value); ok {
+						if ptr, ok := v.Type().(*types.Pointer); !ok || !isNamedType(ptr.Elem(), "io", "ReadCloser") {
+							return true
+						}
+						vrefs := *v.Referrers()
+						for _, vref := range vrefs {
+							if vref, ok := vref.(*ssa.UnOp); ok {
+								vrefs := *vref.Referrers()
+								if len(vrefs) == 0 {
+									return true
+								}
+								for _, vref := range vrefs {
+									if c, ok := vref.(*ssa.Call); ok {
+										if c.Call.Method.Name() == closeMethod {
+											return !called
+										}
+									}
+								}
+							}
+						}
+					}
+
+				}
+			default:
+				return r.isopen(b, i) || !called
+			}
+		}
+	}
+	return false
 }
 
 // isNamedType reports whether t is the named type path.name.
