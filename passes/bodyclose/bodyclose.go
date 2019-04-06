@@ -26,6 +26,7 @@ const (
 	Doc = "bodyclose checks whether HTTP response body is closed successfully"
 
 	nethttpPath = "net/http"
+	closeMethod = closeMethod
 )
 
 type runner struct {
@@ -70,7 +71,7 @@ func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
 	bodyItrf := bodyNamed.Underlying().(*types.Interface)
 	for i := 0; i < bodyItrf.NumMethods(); i++ {
 		bmthd := bodyItrf.Method(i)
-		if bmthd.Id() == "Close" {
+		if bmthd.Id() == closeMethod {
 			r.closeMthd = bmthd
 		}
 	}
@@ -156,15 +157,14 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 											}
 											vrefs := *v.Referrers()
 											for _, vref := range vrefs {
-												switch vref := vref.(type) {
-												case *ssa.UnOp:
+												if vref, ok := vref.(*ssa.UnOp); ok {
 													vrefs := *vref.Referrers()
 													if len(vrefs) == 0 {
 														return true
 													}
 													for _, vref := range vrefs {
 														if c, ok := vref.(*ssa.Call); ok {
-															if c.Call.Method.Name() == "Close" {
+															if c.Call.Method.Name() == closeMethod {
 																return !called
 															}
 														}
@@ -270,10 +270,8 @@ func (r *runner) isCloseCall(ccall ssa.Instruction) bool {
 			closeMtd := ccall.Type().Underlying().(*types.Interface).Method(0)
 			crs := *ccall.Referrers()
 			for _, cs := range crs {
-				switch cs := cs.(type) {
-				case *ssa.Defer:
-					switch val := cs.Common().Value.(type) {
-					case *ssa.Function:
+				if cs, ok := cs.(*ssa.Defer); ok {
+					if val, ok := cs.Common().Value.(*ssa.Function); ok {
 						for _, b := range val.Blocks {
 							for _, instr := range b.Instrs {
 								if c, ok := instr.(*ssa.Call); ok {
