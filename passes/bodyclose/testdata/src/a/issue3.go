@@ -29,3 +29,15 @@ func issue3_3() {
 	}
 	defer func() { fmt.Println(resp.Body.Close()) }()
 }
+
+func funcReceiver(msg string, er error) {
+	fmt.Println(msg)
+	if er != nil {
+		fmt.Println(er)
+	}
+}
+
+func issue3_4() {
+	resp, _ := http.Get("https://example.com")
+	defer func() { funcReceiver("test", resp.Body.Close()) }()
+}
