@@ -89,7 +89,7 @@ func (r runner) run(pass *analysis.Pass) (interface{}, error) {
 			for i := range b.Instrs {
 				pos := b.Instrs[i].Pos()
 				if r.isopen(b, i) {
-					pass.Reportf(pos, "rows err must be checked")
+					pass.Reportf(pos, fmt.Sprintf("%d rows err must be checked",i))
 				}
 			}
 		}
@@ -109,6 +109,12 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	}
 	cRefs := *call.Referrers()
 	for _, cRef := range cRefs {
+
+		fmt.Printf("%T %+v\n",cRef,cRef)
+		switch cv:=cRef.(type) {
+		case *ssa.Extract:
+			fmt.Println("116",cv.Type().String())
+		}
 		val, ok := r.getResVal(cRef)
 		if !ok {
 			continue
@@ -117,6 +123,7 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		if len(*val.Referrers()) == 0 {
 			return true
 		}
+
 		resRefs := *val.Referrers()
 		for _, resRef := range resRefs {
 			switch resRef := resRef.(type) {
@@ -139,6 +146,7 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 
 				}
 			case *ssa.Call: // Indirect function call
+				fmt.Printf("143 %+v", resRef)
 				if r.isCloseCall(resRef) {
 					return false
 				}
@@ -189,6 +197,7 @@ func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
 			return instr.X.(ssa.Value), true
 		}
 	case ssa.Value:
+		println("193", instr.Type().String() == r.resTyp.String(), instr.Type().String(), r.resTyp.String())
 		if instr.Type().String() == r.resTyp.String() {
 			return instr, true
 		}
@@ -210,7 +219,7 @@ func (r *runner) getBodyOp(instr ssa.Instruction) (*ssa.UnOp, bool) {
 func (r *runner) isCloseCall(ccall ssa.Instruction) bool {
 	switch ccall := ccall.(type) {
 	case *ssa.Defer:
-		if ccall.Call.Method != nil && ccall.Call.Method.Name() == r.closeMthd.Name() {
+		if ccall.Call.Value != nil && ccall.Call.Value.Name() == r.closeMthd.Name() {
 			return true
 		}
 	case *ssa.Call:
