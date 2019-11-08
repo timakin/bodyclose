@@ -1,14 +1,13 @@
 package b
 
-import (
-	"database/sql"
-)
+import "database/sql"
 
-func f10(db *sql.DB) {
-
+func get(db *sql.DB) *sql.Rows {
 	rows, _ := db.Query("")
-	resCloser := func(rs *sql.Rows) {
-		_ = rs.Err()
-	}
-	resCloser(rows)
+	return rows
+}
+
+func main() {
+	resp := get(new(sql.DB))
+	_ = resp.Err()
 }
