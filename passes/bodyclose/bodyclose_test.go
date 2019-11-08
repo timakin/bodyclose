@@ -9,5 +9,5 @@ import (
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, bodyclose.Analyzer, "a")
+	analysistest.Run(t, testdata, bodyclose.Analyzer, "b")
 }

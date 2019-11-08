@@ -1,11 +1,15 @@
 package a
 
 import (
-	"io"
-	"net/http"
+	"database/sql"
 )
 
-func testNoCrashOnDefer() {
-	resp, _ := http.Get("https://example.com") // want "response body must be closed"
-	defer func(body io.ReadCloser) {}(resp.Body)
+func testNoCrashOnDefer(db *sql.DB) {
+	rows, _ := db.Query("")
+	for rows.Next() {
+	}
+
+	defer func(rs *sql.Rows) {
+		_ = rs.Err()
+	}(rows)
 }

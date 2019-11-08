@@ -25,8 +25,8 @@ var Analyzer = &analysis.Analyzer{
 const (
 	Doc = "bodyclose checks whether HTTP response body is closed successfully"
 
-	nethttpPath = "net/http"
-	closeMethod = "Close"
+	nethttpPath = "database/sql"
+	closeMethod = "Err"
 )
 
 type runner struct {
@@ -44,7 +44,7 @@ func (r runner) run(pass *analysis.Pass) (interface{}, error) {
 	r.pass = pass
 	funcs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
 
-	r.resObj = analysisutil.LookupFromImports(pass.Pkg.Imports(), nethttpPath, "Response")
+	r.resObj = analysisutil.LookupFromImports(pass.Pkg.Imports(), nethttpPath, "Rows")
 	if r.resObj == nil {
 		// skip checking
 		return nil, nil
@@ -55,24 +55,13 @@ func (r runner) run(pass *analysis.Pass) (interface{}, error) {
 		return nil, fmt.Errorf("cannot find http.Response")
 	}
 	r.resTyp = types.NewPointer(resNamed)
-
-	resStruct, ok := r.resObj.Type().Underlying().(*types.Struct)
-	if !ok {
-		return nil, fmt.Errorf("cannot find http.Response")
-	}
-	for i := 0; i < resStruct.NumFields(); i++ {
-		field := resStruct.Field(i)
-		if field.Id() == "Body" {
-			r.bodyObj = field
-		}
-	}
+	r.bodyObj = r.resObj
 	if r.bodyObj == nil {
 		return nil, fmt.Errorf("cannot find the object http.Response.Body")
 	}
 	bodyNamed := r.bodyObj.Type().(*types.Named)
-	bodyItrf := bodyNamed.Underlying().(*types.Interface)
-	for i := 0; i < bodyItrf.NumMethods(); i++ {
-		bmthd := bodyItrf.Method(i)
+	for i := 0; i < bodyNamed.NumMethods(); i++ {
+		bmthd := bodyNamed.Method(i)
 		if bmthd.Id() == closeMethod {
 			r.closeMthd = bmthd
 		}
@@ -100,7 +89,7 @@ func (r runner) run(pass *analysis.Pass) (interface{}, error) {
 			for i := range b.Instrs {
 				pos := b.Instrs[i].Pos()
 				if r.isopen(b, i) {
-					pass.Reportf(pos, "response body must be closed")
+					pass.Reportf(pos, "rows err must be checked")
 				}
 			}
 		}
@@ -150,12 +139,8 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 
 				}
 			case *ssa.Call: // Indirect function call
-				if f, ok := resRef.Call.Value.(*ssa.Function); ok {
-					for _, b := range f.Blocks {
-						for i := range b.Instrs {
-							return r.isopen(b, i)
-						}
-					}
+				if r.isCloseCall(resRef) {
+					return false
 				}
 			case *ssa.FieldAddr: // Normal reference to response entity
 				if resRef.Referrers() == nil {
@@ -229,29 +214,10 @@ func (r *runner) isCloseCall(ccall ssa.Instruction) bool {
 			return true
 		}
 	case *ssa.Call:
-		if ccall.Call.Method != nil && ccall.Call.Method.Name() == r.closeMthd.Name() {
+		if ccall.Call.Value != nil && ccall.Call.Value.Name() == r.closeMthd.Name() {
 			return true
 		}
-	case *ssa.ChangeInterface:
-		if ccall.Type().String() == "io.Closer" {
-			closeMtd := ccall.Type().Underlying().(*types.Interface).Method(0)
-			crs := *ccall.Referrers()
-			for _, cs := range crs {
-				if cs, ok := cs.(*ssa.Defer); ok {
-					if val, ok := cs.Common().Value.(*ssa.Function); ok {
-						for _, b := range val.Blocks {
-							for _, instr := range b.Instrs {
-								if c, ok := instr.(*ssa.Call); ok {
-									if c.Call.Method == closeMtd {
-										return true
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+
 	}
 	return false
 }
@@ -305,6 +271,7 @@ func (r *runner) noImportedNetHTTP(f *ssa.Function) (ret bool) {
 func (r *runner) calledInFunc(f *ssa.Function, called bool) bool {
 	for _, b := range f.Blocks {
 		for i, instr := range b.Instrs {
+			fmt.Printf("xx%+v\n", instr)
 			switch instr := instr.(type) {
 			case *ssa.UnOp:
 				refs := *instr.Referrers()
@@ -313,9 +280,6 @@ func (r *runner) calledInFunc(f *ssa.Function, called bool) bool {
 				}
 				for _, r := range refs {
 					if v, ok := r.(ssa.Value); ok {
-						if ptr, ok := v.Type().(*types.Pointer); !ok || !isNamedType(ptr.Elem(), "io", "ReadCloser") {
-							continue
-						}
 						vrefs := *v.Referrers()
 						for _, vref := range vrefs {
 							if vref, ok := vref.(*ssa.UnOp); ok {
@@ -325,7 +289,7 @@ func (r *runner) calledInFunc(f *ssa.Function, called bool) bool {
 								}
 								for _, vref := range vrefs {
 									if c, ok := vref.(*ssa.Call); ok {
-										if c.Call.Method != nil && c.Call.Method.Name() == closeMethod {
+										if c.Call.Value != nil && c.Call.Value.Name() == closeMethod {
 											return !called
 										}
 									}

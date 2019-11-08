@@ -1,33 +1,34 @@
 package a
 
 import (
+	"database/sql"
 	"fmt"
-	"io"
-	"net/http"
 )
 
-func closeBody(c io.Closer) {
-	_ = c.Close()
+type Errer interface {
+	Err() error
 }
 
-func issue3_1() {
-	resp, _ := http.Get("https://example.com")
-	defer closeBody(resp.Body)
-}
+// func closeBody(c Errer) {
+// 	_ = c.Err()
+// }
 
-func issue3_2() {
-	resp, _ := http.Get("https://example.com")
+// func issue3_1(db *sql.DB) {
+// 	rows, _ := db.Query("")
+// 	defer closeBody(rows)
+// }
+
+func issue3_2(db *sql.DB) {
+	rows, _ := db.Query("")
 	defer func() {
-		_ = resp.Body.Close()
+		_ = rows.Err()
 	}()
 }
 
-func issue3_3() {
-	resp, err := http.DefaultClient.Do(nil)
-	if err != nil {
-		// handle err
-	}
-	defer func() { fmt.Println(resp.Body.Close()) }()
+func issue3_3(db *sql.DB) {
+	rows, _ := db.Query("")
+
+	defer func() { fmt.Println(rows.Err()) }()
 }
 
 func funcReceiver(msg string, er error) {
@@ -37,7 +38,7 @@ func funcReceiver(msg string, er error) {
 	}
 }
 
-func issue3_4() {
-	resp, _ := http.Get("https://example.com")
-	defer func() { funcReceiver("test", resp.Body.Close()) }()
+func issue3_4(db *sql.DB) {
+	rows, _ := db.Query("")
+	defer func() { funcReceiver("test", rows.Err()) }()
 }

@@ -1,115 +1,92 @@
 package a
 
 import (
+	"database/sql"
 	"fmt"
-	"net/http"
 )
 
-func f1() {
-	resp, err := http.Get("http://example.com/") // OK
-	if err != nil {
-		// handle error
-	}
-	resp.Body.Close()
+func RowsErrCheck() {
+	rows, _ := db.Query("")
+	for rows.Next() {
 
-	resp2, err := http.Get("http://example.com/") // OK
-	if err != nil {
-		// handle error
 	}
-	resp2.Body.Close()
+	_ = rows.Err() // OK
 }
 
 func f2() {
-	resp, err := http.Get("http://example.com/") // OK
+	rows, err := db.Query("") // OK
 	if err != nil {
 		// handle error
 	}
-	body := resp.Body
-	body.Close()
+	rowsS := rows
+	_ = rowsS.Err()
 
-	resp2, err := http.Get("http://example.com/") // OK
-	body2 := resp2.Body
-	body2.Close()
+	rows2, err := db.Query("") // OK
+	rowsX2 := rows2
+	_ = rowsX2.Err()
 	if err != nil {
 		// handle error
 	}
-}
-
-func f3() {
-	resp, err := http.Get("http://example.com/") // OK
-	if err != nil {
-		// handle error
-	}
-	defer resp.Body.Close()
 }
 
 func f4() {
-	resp, err := http.Get("http://example.com/") // want "response body must be closed"
+	rows, err := db.Query("") // want "rows err must be checked"
 	if err != nil {
 		// handle error
 	}
-	fmt.Print(resp)
+	fmt.Print(rows.NextResultSet())
 
-	resp, err = http.Get("http://example.com/") // want "response body must be closed"
+	rows, err = db.Query("") // want "rows err must be checked"
 	if err != nil {
 		// handle error
 	}
-	fmt.Print(resp.Status)
+	fmt.Print(rows.NextResultSet())
 
-	resp, err = http.Get("http://example.com/") // want "response body must be closed"
+	rows, err = db.Query("") // want "rows err must be checked"
 	if err != nil {
 		// handle error
 	}
-	fmt.Print(resp.Body)
+	fmt.Print(rows.NextResultSet())
 	return
 }
 
 func f5() {
-	_, err := http.Get("http://example.com/") // want "response body must be closed"
+	_, err := db.Query("") // want "rows err must be checked"
 	if err != nil {
 		// handle error
 	}
 }
 
 func f6() {
-	http.Get("http://example.com/") // want "response body must be closed"
+	db.Query("") // want "rows err must be checked"
 }
 
 func f7() {
-	res, _ := http.Get("http://example.com/") // OK
-	resCloser := func() {
-		res.Body.Close()
+	rows, _ := db.Query("") // OK
+	resCloser := func() error {
+		return rows.Err()
 	}
-	resCloser()
+	_ = resCloser()
 }
 
 func f8() {
-	res, _ := http.Get("http://example.com/") // want "response body must be closed"
+	rows, _ := db.Query("") // want "rows err must be checked"
 	_ = func() {
-		res.Body.Close()
+		rows.Close()
 	}
 }
 
 func f9() {
 	_ = func() {
-		res, _ := http.Get("http://example.com/") // OK
-		res.Body.Close()
+		rows, _ := db.Query("") // OK
+		rows.Err()
 	}
 }
 
 func f10() {
-	res, _ := http.Get("http://example.com/") // OK
-	resCloser := func(res *http.Response) {
-		res.Body.Close()
+	rows, _ := db.Query("")
+	resCloser := func(rs *sql.Rows) {
+		_ = rs.Err()
 	}
-	resCloser(res)
-}
-
-func handleResponse(res *http.Response) {
-	res.Body.Close()
-}
-
-func f11() {
-	res, _ := http.Get("http://example.com/") // OK
-	handleResponse(res)
+	resCloser(rows)
 }
