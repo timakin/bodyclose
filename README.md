@@ -47,5 +47,5 @@ If you forget this sentence, and unluckly an `invaliad connection` error happend
 data from database, `rows.Next` will return false, and you will get an incomplete data, and
 even it seems everything is ok. This will cause serious accident.
 
-## Analyzer
+## Thanks
 Thanks for [timakin](https://github.com/jingyugao/rowserrcheck).
