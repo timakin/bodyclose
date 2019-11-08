@@ -31,7 +31,7 @@ linters:
 
 run:
   skip-dirs:
-  - passes/bodyclose/testdata
+  - passes/rowserr/testdata
 
 issues:
   exclude-rules:

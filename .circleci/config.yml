@@ -1,48 +1,26 @@
-version: 2.1
-
-orbs:
-  go-module: timakin/go-module@0.3.0
-  golangci-lint: timakin/golangci-lint@0.1.0
-
-executors:
-  default:
-    working_directory: /go/src/github.com/timakin/bodyclose
-    docker:
-    - image: circleci/golang:1.12
-    environment:
-    - APP_NAME: bodyclose
-    - GO111MODULE: "on"
-
+# Golang CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-go/ for more details
+version: 2
 jobs:
-  test:
-    executor:
-      name: default
-    steps:
-    - attach_workspace:
-        at: /go/src/github.com/timakin/bodyclose
-    - run: go test ./...
+  build:
+    docker:
+      # specify the version
+      - image: circleci/golang:1.13
 
-workflows:
-  version: 2
-  setup_and_deploy:
-    jobs:
-    - go-module/download:
-        executor: default
-        checkout: true
-        vendoring: true
-        persist-to-workspace: true
-        workspace-root: /go/src/github.com/timakin/bodyclose
-    - test:
-        requires:
-        - go-module/download
-    - golangci-lint/lint:
-        checkout: false
-        attach-workspace: true
-        workspace-root: /go/src/github.com/timakin/bodyclose
-        working-directory: /go/src/github.com/timakin/bodyclose
-        requires:
-        - go-module/download
-        filters:
-          branches:
-            ignore:
-            - master
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/postgres:9.4
+
+    #### TEMPLATE_NOTE: go expects specific checkout path representing url
+    #### expecting it in the form of
+    ####   /go/src/github.com/circleci/go-tool
+    ####   /go/src/bitbucket.org/circleci/go-tool
+    working_directory: /go/src/github.com/jingyugao/rowserrcheck
+    steps:
+      - checkout
+
+      # specify any bash command here prefixed with `run: `
+      - run: go get -v -t -d ./...
+      - run: go test -v ./...

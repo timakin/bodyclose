@@ -3,8 +3,8 @@
 package main
 
 import (
-	"github.com/timakin/bodyclose/passes/bodyclose"
+	"github.com/jingyugao/rowserrcheck/passes/rowserr"
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
 
-func main() { singlechecker.Main(bodyclose.Analyzer) }
+func main() { singlechecker.Main(rowserr.NewAnalyzer()) }

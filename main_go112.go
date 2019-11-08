@@ -3,15 +3,15 @@
 package main
 
 import (
-	"github.com/timakin/bodyclose/passes/bodyclose"
+	"github.com/jingyugao/rowserrcheck/passes/rowserr"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/unitchecker"
 )
 
-// Analyzers returns analyzers of bodyclose.
+// Analyzers returns analyzers of rowserr.
 func analyzers() []*analysis.Analyzer {
 	return []*analysis.Analyzer{
-		bodyclose.Analyzer,
+		rowserr.NewAnalyzer(),
 	}
 }
 
