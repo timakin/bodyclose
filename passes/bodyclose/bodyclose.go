@@ -89,7 +89,7 @@ func (r runner) run(pass *analysis.Pass) (interface{}, error) {
 			for i := range b.Instrs {
 				pos := b.Instrs[i].Pos()
 				if r.isopen(b, i) {
-					pass.Reportf(pos, fmt.Sprintf("%d rows err must be checked",i))
+					pass.Reportf(pos, fmt.Sprintf("%d rows err must be checked", i))
 				}
 			}
 		}
@@ -110,10 +110,10 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	cRefs := *call.Referrers()
 	for _, cRef := range cRefs {
 
-		fmt.Printf("%T %+v\n",cRef,cRef)
-		switch cv:=cRef.(type) {
+		fmt.Printf("%T %+v\n", cRef, cRef)
+		switch cv := cRef.(type) {
 		case *ssa.Extract:
-			fmt.Println("116",cv.Type().String())
+			fmt.Println("116", cv.Type().String())
 		}
 		val, ok := r.getResVal(cRef)
 		if !ok {
@@ -146,9 +146,15 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 
 				}
 			case *ssa.Call: // Indirect function call
-				fmt.Printf("143 %+v", resRef)
 				if r.isCloseCall(resRef) {
 					return false
+				}
+				if f, ok := resRef.Call.Value.(*ssa.Function); ok {
+					for _, b := range f.Blocks {
+						for i := range b.Instrs {
+							return r.isopen(b, i)
+						}
+					}
 				}
 			case *ssa.FieldAddr: // Normal reference to response entity
 				if resRef.Referrers() == nil {
