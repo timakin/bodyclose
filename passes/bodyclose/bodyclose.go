@@ -89,7 +89,7 @@ func (r runner) run(pass *analysis.Pass) (interface{}, error) {
 			for i := range b.Instrs {
 				pos := b.Instrs[i].Pos()
 				if r.isopen(b, i) {
-					pass.Reportf(pos, fmt.Sprintf("%d rows err must be checked", i))
+					pass.Reportf(pos, fmt.Sprintf("rows err must be checked"))
 				}
 			}
 		}
@@ -109,12 +109,6 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	}
 	cRefs := *call.Referrers()
 	for _, cRef := range cRefs {
-
-		fmt.Printf("%T %+v\n", cRef, cRef)
-		switch cv := cRef.(type) {
-		case *ssa.Extract:
-			fmt.Println("116", cv.Type().String())
-		}
 		val, ok := r.getResVal(cRef)
 		if !ok {
 			continue
@@ -202,8 +196,11 @@ func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
 		if instr.X.Type().String() == r.resTyp.String() {
 			return instr.X.(ssa.Value), true
 		}
+	case *ssa.Call:
+		if len(instr.Call.Args) == 1 && instr.Call.Args[0].Type().String() == r.resTyp.String() {
+			return instr.Call.Args[0], true
+		}
 	case ssa.Value:
-		println("193", instr.Type().String() == r.resTyp.String(), instr.Type().String(), r.resTyp.String())
 		if instr.Type().String() == r.resTyp.String() {
 			return instr, true
 		}
@@ -286,7 +283,6 @@ func (r *runner) noImportedNetHTTP(f *ssa.Function) (ret bool) {
 func (r *runner) calledInFunc(f *ssa.Function, called bool) bool {
 	for _, b := range f.Blocks {
 		for i, instr := range b.Instrs {
-			fmt.Printf("xx%+v\n", instr)
 			switch instr := instr.(type) {
 			case *ssa.UnOp:
 				refs := *instr.Referrers()
