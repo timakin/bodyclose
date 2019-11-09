@@ -8,22 +8,16 @@ import (
 	"strings"
 
 	"github.com/gostaticanalysis/analysisutil"
-	"github.com/jmoiron/sqlx"
-	_ "github.com/jmoiron/sqlx"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
 	"golang.org/x/tools/go/ssa"
 )
 
-var _ = sqlx.NameMapper
-
 func NewAnalyzer(sqlPkgs ...string) *analysis.Analyzer {
-	dbsqlPkgs = append(dbsqlPkgs, sqlPkgs...)
-
 	return &analysis.Analyzer{
 		Name: "rowserr",
 		Doc:  Doc,
-		Run:  runx,
+		Run:  NewRun(sqlPkgs...),
 		Requires: []*analysis.Analyzer{
 			buildssa.Analyzer,
 		},
@@ -33,60 +27,54 @@ func NewAnalyzer(sqlPkgs ...string) *analysis.Analyzer {
 const (
 	Doc       = "rowserrcheck checks whether Rows.Err is checked"
 	errMethod = "Err"
-)
-
-var (
-	dbsqlPath string
-	dbsqlPkgs = []string{
-		"database/sql",
-	}
+	rowsName  = "Rows"
 )
 
 type runner struct {
 	pass      *analysis.Pass
-	resObj    types.Object
-	resTyp    *types.Pointer
-	bodyObj   types.Object
+	rowsTyp   *types.Pointer
+	rowsObj   types.Object
 	closeMthd *types.Func
 	skipFile  map[*ast.File]bool
+	sqlPkg    string
 }
 
-func runx(pass *analysis.Pass) (interface{}, error) {
-	for _, pkg := range dbsqlPkgs {
-		dbsqlPath = pkg
-		ret, err := new(runner).runSimple(pass)
-		if err != nil {
-			return ret, err
+func NewRun(pkgs ...string) func(pass *analysis.Pass) (interface{}, error) {
+	return func(pass *analysis.Pass) (interface{}, error) {
+		pkgs = append(pkgs, "database/sql")
+		for _, pkg := range pkgs {
+			ret, err := new(runner).run(pass, pkg)
+			if err != nil {
+				return ret, err
+			}
 		}
+		return nil, nil
 	}
-	return nil, nil
 }
 
 // run executes an analysis for the pass. The receiver is passed
 // by value because this func is called in parallel for different passes.
-func (r runner) runSimple(pass *analysis.Pass) (interface{}, error) {
+func (r runner) run(pass *analysis.Pass, pkg string) (interface{}, error) {
+	r.sqlPkg = pkg
 	r.pass = pass
 	funcs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
-	r.resObj = analysisutil.LookupFromImports(pass.Pkg.Imports(), dbsqlPath, "Rows")
-	if r.resObj == nil {
+	r.rowsObj = analysisutil.LookupFromImports(pass.Pkg.Imports(), r.sqlPkg, rowsName)
+	if r.rowsObj == nil {
 		// skip checking
 		return nil, nil
 	}
 
-	resNamed, ok := r.resObj.Type().(*types.Named)
+	resNamed, ok := r.rowsObj.Type().(*types.Named)
 	if !ok {
-		return nil, fmt.Errorf("cannot find http.Response")
+		return nil, fmt.Errorf("cannot find sql.Rows")
 	}
-	r.resTyp = types.NewPointer(resNamed)
-	r.bodyObj = r.resObj
-	if r.bodyObj == nil {
-		return nil, fmt.Errorf("cannot find the object http.Response.Body")
-	}
-	bodyNamed := r.bodyObj.Type().(*types.Named)
-	for i := 0; i < bodyNamed.NumMethods(); i++ {
-		bmthd := bodyNamed.Method(i)
-		if bmthd.Id() == errMethod {
-			r.closeMthd = bmthd
+	r.rowsTyp = types.NewPointer(resNamed)
+
+	rowsNamed := r.rowsObj.Type().(*types.Named)
+	for i := 0; i < rowsNamed.NumMethods(); i++ {
+		rsmd := rowsNamed.Method(i)
+		if rsmd.Id() == errMethod {
+			r.closeMthd = rsmd
 		}
 	}
 
@@ -100,7 +88,7 @@ func (r runner) runSimple(pass *analysis.Pass) (interface{}, error) {
 		// skip if the function is just referenced
 		var isreffunc bool
 		for i := 0; i < f.Signature.Results().Len(); i++ {
-			if f.Signature.Results().At(i).Type().String() == r.resTyp.String() {
+			if f.Signature.Results().At(i).Type().String() == r.rowsTyp.String() {
 				isreffunc = true
 			}
 		}
@@ -207,7 +195,7 @@ func (r *runner) getReqCall(instr ssa.Instruction) (*ssa.Call, bool) {
 	if !ok {
 		return nil, false
 	}
-	if !strings.Contains(call.Type().String(), r.resTyp.String()) {
+	if !strings.Contains(call.Type().String(), r.rowsTyp.String()) {
 		return nil, false
 	}
 	return call, true
@@ -216,15 +204,15 @@ func (r *runner) getReqCall(instr ssa.Instruction) (*ssa.Call, bool) {
 func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
 	switch instr := instr.(type) {
 	case *ssa.FieldAddr:
-		if instr.X.Type().String() == r.resTyp.String() {
+		if instr.X.Type().String() == r.rowsTyp.String() {
 			return instr.X.(ssa.Value), true
 		}
 	case *ssa.Call:
-		if len(instr.Call.Args) == 1 && instr.Call.Args[0].Type().String() == r.resTyp.String() {
+		if len(instr.Call.Args) == 1 && instr.Call.Args[0].Type().String() == r.rowsTyp.String() {
 			return instr.Call.Args[0], true
 		}
 	case ssa.Value:
-		if instr.Type().String() == r.resTyp.String() {
+		if instr.Type().String() == r.rowsTyp.String() {
 			return instr, true
 		}
 	}
@@ -236,7 +224,7 @@ func (r *runner) getBodyOp(instr ssa.Instruction) (*ssa.UnOp, bool) {
 	if !ok {
 		return nil, false
 	}
-	if op.Type() != r.bodyObj.Type() {
+	if op.Type() != r.rowsObj.Type() {
 		return nil, false
 	}
 	return op, true
@@ -295,7 +283,7 @@ func (r *runner) noImportedNetHTTP(f *ssa.Function) (ret bool) {
 			continue
 		}
 		path = analysisutil.RemoveVendor(path)
-		if path == dbsqlPath {
+		if path == r.sqlPkg {
 			return false
 		}
 	}
