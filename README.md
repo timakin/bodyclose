@@ -30,9 +30,6 @@ This code is wrong. You must check rows.Err when finished scan rows.
 
 ```go
 rows, _ := db.Query("select id from tb") // Wrong case
-if err != nil {
-	// handle error
-}
 for rows.Next(){
 	// handle rows
 }
