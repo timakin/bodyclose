@@ -7,10 +7,18 @@ import (
 
 func RowsErrCheck() {
 	rows, _ := db.Query("")
-	for rows.Next() {
 
-	}
-	_ = rows.Err() // OK
+	defer func() {
+		_ = rows.Err()
+	}()
+}
+
+func RowsErrNotCheck(db *sql.DB) {
+	rows, _ := db.Query("") // want "rows err must be checked"
+
+	defer func() {
+		_ = rows.Close()
+	}()
 }
 
 func f2() {
