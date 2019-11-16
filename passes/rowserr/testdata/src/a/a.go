@@ -5,19 +5,19 @@ import (
 	"fmt"
 )
 
-func RowsErrCheck() {
-	rows, _ := db.Query("")
-
-	defer func() {
-		_ = rows.Err()
-	}()
-}
-
 func RowsErrNotCheck(db *sql.DB) {
 	rows, _ := db.Query("") // want "rows err must be checked"
 
 	defer func() {
 		_ = rows.Close()
+	}()
+}
+
+func RowsErrCheck() {
+	rows, _ := db.Query("")
+
+	defer func() {
+		_ = rows.Err()
 	}()
 }
 

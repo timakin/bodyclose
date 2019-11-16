@@ -14,7 +14,6 @@ func issue3_2(db *sql.DB) {
 
 func issue3_3(db *sql.DB) {
 	rows, _ := db.Query("")
-
 	defer func() { fmt.Println(rows.Err()) }()
 }
 
