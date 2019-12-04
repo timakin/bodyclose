@@ -6,7 +6,7 @@ import (
 )
 
 func RowsErrNotCheck(db *sql.DB) {
-	rows, _ := db.Query("") // want "rows err must be checked"
+	rows, _ := db.Query("") // want "rows.Err must be checked"
 
 	defer func() {
 		_ = rows.Close()
@@ -38,19 +38,19 @@ func f2() {
 }
 
 func f4() {
-	rows, err := db.Query("") // want "rows err must be checked"
+	rows, err := db.Query("") // want "rows.Err must be checked"
 	if err != nil {
 		// handle error
 	}
 	fmt.Print(rows.NextResultSet())
 
-	rows, err = db.Query("") // want "rows err must be checked"
+	rows, err = db.Query("") // want "rows.Err must be checked"
 	if err != nil {
 		// handle error
 	}
 	fmt.Print(rows.NextResultSet())
 
-	rows, err = db.Query("") // want "rows err must be checked"
+	rows, err = db.Query("") // want "rows.Err must be checked"
 	if err != nil {
 		// handle error
 	}
@@ -59,14 +59,14 @@ func f4() {
 }
 
 func f5() {
-	_, err := db.Query("") // want "rows err must be checked"
+	_, err := db.Query("") // want "rows.Err must be checked"
 	if err != nil {
 		// handle error
 	}
 }
 
 func f6() {
-	db.Query("") // want "rows err must be checked"
+	db.Query("") // want "rows.Err must be checked"
 }
 
 func f7() {
@@ -78,7 +78,7 @@ func f7() {
 }
 
 func f8() {
-	rows, _ := db.Query("") // want "rows err must be checked"
+	rows, _ := db.Query("") // want "rows.Err must be checked"
 	_ = func() {
 		rows.Close()
 	}
