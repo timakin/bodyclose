@@ -64,6 +64,8 @@ func (r runner) run(pass *analysis.Pass) (interface{}, error) {
 		field := resStruct.Field(i)
 		if field.Id() == "Body" {
 			r.bodyObj = field
+
+			break
 		}
 	}
 	if r.bodyObj == nil {
@@ -75,20 +77,19 @@ func (r runner) run(pass *analysis.Pass) (interface{}, error) {
 		bmthd := bodyItrf.Method(i)
 		if bmthd.Id() == closeMethod {
 			r.closeMthd = bmthd
+
+			break
 		}
 	}
 
 	r.skipFile = map[*ast.File]bool{}
+FuncLoop:
 	for _, f := range funcs {
 		// skip if the function is just referenced
-		var isreffunc bool
 		for i := 0; i < f.Signature.Results().Len(); i++ {
 			if f.Signature.Results().At(i).Type().String() == r.resTyp.String() {
-				isreffunc = true
+				continue FuncLoop
 			}
-		}
-		if isreffunc {
-			continue
 		}
 
 		for _, b := range f.Blocks {
