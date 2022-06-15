@@ -147,8 +147,14 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 			case *ssa.Call: // Indirect function call
 				if f, ok := resRef.Call.Value.(*ssa.Function); ok {
 					for _, b := range f.Blocks {
-						for i := range b.Instrs {
-							return r.isopen(b, i)
+						for i, bi := range b.Instrs {
+							if r.isCloseCall(bi) {
+								return false
+							}
+
+							if r.isopen(b, i) {
+								return true
+							}
 						}
 					}
 				}
