@@ -218,6 +218,10 @@ func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
 		if instr.Type().String() == r.resTyp.String() {
 			return instr, true
 		}
+	case *ssa.Store:
+		if instr.Val.Type().String() == r.resTyp.String() {
+			return instr.Val, true
+		}
 	}
 	return nil, false
 }
