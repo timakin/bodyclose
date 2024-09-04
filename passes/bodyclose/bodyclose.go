@@ -114,6 +114,18 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 	if len(*call.Referrers()) == 0 {
 		return true
 	}
+
+	if instr, ok := b.Instrs[i].(*ssa.Call); ok {
+		//  httptest.ResponseRecorder is not needed closing the response body because no-op.
+		if callee := instr.Call.StaticCallee(); callee != nil && callee.Name() == "Result" {
+			if callee.Pkg != nil && callee.Pkg.Pkg.Name() == "httptest" {
+				if recv := callee.Signature.Recv(); recv != nil && recv.Type().String() == "*net/http/httptest.ResponseRecorder" {
+					return false
+				}
+			}
+		}
+	}
+
 	cRefs := *call.Referrers()
 	for _, cRef := range cRefs {
 		val, ok := r.getResVal(cRef)
