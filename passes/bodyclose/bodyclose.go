@@ -2,15 +2,14 @@ package bodyclose
 
 import (
 	"fmt"
+	"github.com/gostaticanalysis/analysisutil"
 	"go/ast"
 	"go/types"
-	"strconv"
-	"strings"
-
-	"github.com/gostaticanalysis/analysisutil"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
 	"golang.org/x/tools/go/ssa"
+	"strconv"
+	"strings"
 )
 
 var Analyzer = &analysis.Analyzer{
@@ -207,7 +206,9 @@ func (r *runner) getReqCall(instr ssa.Instruction) (*ssa.Call, bool) {
 	if !ok {
 		return nil, false
 	}
-	if !strings.Contains(call.Type().String(), r.resTyp.String()) {
+	callType := call.Type().String()
+	if !strings.Contains(callType, r.resTyp.String()) ||
+		strings.Contains(callType, "ResponseController") {
 		return nil, false
 	}
 	return call, true
