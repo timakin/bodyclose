@@ -2,14 +2,15 @@ package bodyclose
 
 import (
 	"fmt"
-	"github.com/gostaticanalysis/analysisutil"
 	"go/ast"
 	"go/types"
+	"strconv"
+	"strings"
+
+	"github.com/gostaticanalysis/analysisutil"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
 	"golang.org/x/tools/go/ssa"
-	"strconv"
-	"strings"
 )
 
 var Analyzer = &analysis.Analyzer{
