@@ -195,6 +195,34 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 						}
 					}
 				}
+			case *ssa.Phi: // Called in the higher-level block
+				if resRef.Referrers() == nil {
+					return true
+				}
+
+				bRefs := *resRef.Referrers()
+
+				for _, bRef := range bRefs {
+					switch instr := bRef.(type) {
+					case *ssa.FieldAddr:
+						bRefs := *instr.Referrers()
+						for _, bRef := range bRefs {
+							bOp, ok := r.getBodyOp(bRef)
+							if !ok {
+								continue
+							}
+							if len(*bOp.Referrers()) == 0 {
+								return true
+							}
+							ccalls := *bOp.Referrers()
+							for _, ccall := range ccalls {
+								if r.isCloseCall(ccall) {
+									return false
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 	}
