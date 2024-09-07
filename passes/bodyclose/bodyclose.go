@@ -149,6 +149,22 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 						return r.calledInFunc(f, called)
 					}
 
+					// Case when calling Close() from struct field or method
+					if s, ok := aref.(*ssa.Store); ok {
+						if f, ok := s.Addr.(*ssa.FieldAddr); ok {
+							for _, bRef := range f.Block().Instrs {
+								bOp, ok := r.getBodyOp(bRef)
+								if !ok {
+									continue
+								}
+								for _, ccall := range *bOp.Referrers() {
+									if r.isCloseCall(ccall) {
+										return false
+									}
+								}
+							}
+						}
+					}
 				}
 			case *ssa.Call, *ssa.Defer: // Indirect function call
 				// Hacky way to extract CommonCall
