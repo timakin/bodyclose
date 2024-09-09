@@ -42,3 +42,17 @@ func issue58_4() {
 		defer resp.Body.Close()
 	}
 }
+
+func issue58_5() {
+	resp, err := http.Get("http://example.com/") // OK
+	if err != nil {
+		panic(err) // handle error
+	}
+	resp.Body.Close()
+
+	resp2, err := http.Get("http://example.com/") // OK
+	if err != nil {
+		panic(err) // handle error
+	}
+	resp2.Body.Close()
+}
