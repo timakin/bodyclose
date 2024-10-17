@@ -219,7 +219,9 @@ func (r *runner) getReqCall(instr ssa.Instruction) (*ssa.Call, bool) {
 	if !ok {
 		return nil, false
 	}
-	if !strings.Contains(call.Type().String(), r.resTyp.String()) {
+	callType := call.Type().String()
+	if !strings.Contains(callType, r.resTyp.String()) ||
+		strings.Contains(callType, "net/http.ResponseController") {
 		return nil, false
 	}
 	return call, true
