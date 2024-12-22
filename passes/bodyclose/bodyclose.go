@@ -3,7 +3,6 @@ package bodyclose
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
 	"go/types"
 	"strconv"
 	"strings"
@@ -137,8 +136,6 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		if len(*val.Referrers()) == 0 {
 			return true
 		}
-		closeCallCntPerBlock := 0
-		requiredCallCnt := countRequiredBranch(val)
 		resRefs := *val.Referrers()
 		for _, resRef := range resRefs {
 			switch resRef := resRef.(type) {
@@ -220,14 +217,9 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 						return true
 					}
 					ccalls := *bOp.Referrers()
-
 					for _, ccall := range ccalls {
 						if r.isCloseCall(ccall) {
-							if call.Block().Index == ccall.Block().Index {
-								return false
-							} else {
-								closeCallCntPerBlock++
-							}
+							return false
 						}
 					}
 				}
@@ -261,61 +253,9 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 				}
 			}
 		}
-		if closeCallCntPerBlock >= requiredCallCnt {
-			// closed at all branches
-			return false
-		}
 	}
 
 	return true
-}
-
-func countRequiredBranch(val ssa.Value) int {
-	if v, ok := val.(*ssa.Extract); ok {
-		lastInstr := v.Block().Instrs[len(v.Block().Instrs)-1]
-
-		if ifInstr, ok := lastInstr.(*ssa.If); ok {
-			requiredBranchCnt := 0
-			if isErrNotEqNil(ifInstr) {
-				// exclude err check branch count
-				requiredBranchCnt--
-			}
-
-			for _, block := range v.Block().Succs {
-				requiredBranchCnt += countRequiredBranchInBlock(block)
-			}
-			return requiredBranchCnt
-		}
-	}
-
-	return 1
-}
-
-func countRequiredBranchInBlock(block *ssa.BasicBlock) int {
-	lastInstr := block.Instrs[len(block.Instrs)-1]
-	if ifInstr, ok := lastInstr.(*ssa.If); ok {
-		requiredBranchCnt := 0
-		if isErrNotEqNil(ifInstr) {
-			// exclude err check branch count
-			requiredBranchCnt--
-		}
-		for _, block := range block.Succs {
-			requiredBranchCnt += countRequiredBranchInBlock(block)
-		}
-		return requiredBranchCnt
-	}
-	return 1
-}
-
-func isErrNotEqNil(instr *ssa.If) bool {
-	if binOp, ok := instr.Cond.(*ssa.BinOp); ok {
-		if binOp.Op == token.NEQ {
-			if binOp.X.Type().String() == "error" && binOp.Y.Name() == "nil:error" {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func (r *runner) getReqCall(instr ssa.Instruction) (*ssa.Call, bool) {
