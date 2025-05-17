@@ -1,6 +1,6 @@
 # bodyclose
 
-[![CircleCI](https://circleci.com/gh/timakin/bodyclose.svg?style=svg)](https://circleci.com/gh/timakin/bodyclose)
+[![Go](https://github.com/timakin/bodyclose/actions/workflows/go.yml/badge.svg)](https://github.com/timakin/bodyclose/actions/workflows/go.yml)
 
 `bodyclose` is a static analysis tool which checks whether `res.Body` is correctly closed.
 
