@@ -4,17 +4,7 @@ package main
 
 import (
 	"github.com/timakin/bodyclose/passes/bodyclose"
-	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/unitchecker"
+	"golang.org/x/tools/go/analysis/singlechecker"
 )
 
-// Analyzers returns analyzers of bodyclose.
-func analyzers() []*analysis.Analyzer {
-	return []*analysis.Analyzer{
-		bodyclose.Analyzer,
-	}
-}
-
-func main() {
-	unitchecker.Main(analyzers()...)
-}
+func main() { singlechecker.Main(bodyclose.Analyzer) }
