@@ -27,7 +27,7 @@ internal/httpclient/httpclient.go:13:13: response body must be closed
 You can enable additional checks with the `-check-consumption` flag to also verify that response bodies are consumed:
 
 ```bash
-$ go vet -vettool=$(which bodyclose) -bodyclose.check-consumption github.com/timakin/go_api/...
+$ go vet -vettool=$(which bodyclose) -check-consumption github.com/timakin/go_api/...
 ```
 
 #### Supported Consumption Patterns
