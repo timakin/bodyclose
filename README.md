@@ -22,6 +22,45 @@ $ go vet -vettool=$(which bodyclose) github.com/timakin/go_api/...
 internal/httpclient/httpclient.go:13:13: response body must be closed
 ```
 
+### Options
+
+You can enable additional checks with the `-check-consumption` flag to also verify that response bodies are consumed:
+
+```bash
+$ go vet -vettool=$(which bodyclose) -bodyclose.check-consumption github.com/timakin/go_api/...
+```
+
+#### Supported Consumption Patterns
+
+When `-check-consumption` is enabled, the following patterns are recognized as valid body consumption:
+
+- `io.Copy(io.Discard, resp.Body)`
+- `io.ReadAll(resp.Body)`
+- `ioutil.ReadAll(resp.Body)` (legacy)
+- `json.NewDecoder(resp.Body)`
+- `bufio.NewScanner(resp.Body)`
+- `bufio.NewReader(resp.Body)`
+
+##### Limitations and False Positives
+
+**Note**: Patterns not listed above may trigger false positives even when the body is properly consumed. Use `//nolint:bodyclose` to suppress warnings for custom consumption patterns that are not automatically detected.
+
+Example of suppressing false positives:
+```go
+func customBodyProcessing() {
+    resp, _ := http.Get("http://example.com/") //nolint:bodyclose
+    defer resp.Body.Close()
+
+    // Custom consumption logic that analyzer doesn't recognize
+    buf := make([]byte, 1024)
+    resp.Body.Read(buf) // This actually consumes the body
+}
+```
+
+**Limitation**: The analyzer does not detect execution order, so patterns where `Close()` is called before consumption (which would fail at runtime) are not specifically flagged.
+
+### Legacy Usage (Go < 1.12)
+
 When Go is lower than 1.12, just run `bodyclose` command with the package name (import path).
 
 But it cannot accept some options such as `--tags`.
