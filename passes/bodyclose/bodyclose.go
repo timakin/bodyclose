@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/types"
 	"strconv"
-	"strings"
 
 	"github.com/gostaticanalysis/analysisutil"
 	"golang.org/x/tools/go/analysis"
@@ -270,13 +269,22 @@ func (r *runner) getReqCall(instr ssa.Instruction) (*ssa.Call, bool) {
 	if !ok {
 		return nil, false
 	}
-	callType := call.Type().String()
-	if !strings.Contains(callType, r.resTyp.String()) ||
-		strings.Contains(callType, "net/http.ResponseController") {
-		return nil, false
+
+	callType := call.Type()
+
+	if types.Identical(callType, r.resTyp) {
+		return call, true
 	}
 
-	return call, true
+	if tuple, ok := callType.(*types.Tuple); ok {
+		for i := 0; i < tuple.Len(); i++ {
+			if types.Identical(tuple.At(i).Type(), r.resTyp) {
+				return call, true
+			}
+		}
+	}
+
+	return nil, false
 }
 
 func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
