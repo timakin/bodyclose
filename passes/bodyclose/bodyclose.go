@@ -321,9 +321,79 @@ func (r *runner) isBodyProperlyHandled(bOp *ssa.UnOp) bool {
 			// Close found and consumption checking enabled - check consumption
 			return r.hasConsumptionForBody(bOp)
 		}
+
+		if r.closedViaHelper(ccall, bOp) {
+			if !r.checkConsumption {
+				return true
+			}
+			return r.hasConsumptionForBody(bOp)
+		}
 	}
 
 	// No close call found
+	return false
+}
+
+// closedViaHelper checks if body is passed as an argument to a function
+// (directly or via ChangeInterface) that calls Close on that parameter.
+func (r *runner) closedViaHelper(instr ssa.Instruction, body *ssa.UnOp) bool {
+	if r.argClosedInCallee(instr, body) {
+		return true
+	}
+	// Check if body is converted to an interface (io.Closer, io.ReadCloser)
+	// and that value is passed to a callee that closes it.
+	for _, ref := range *body.Referrers() {
+		ci, ok := ref.(*ssa.ChangeInterface)
+		if !ok {
+			continue
+		}
+		if ci.Referrers() == nil {
+			continue
+		}
+		for _, ciRef := range *ci.Referrers() {
+			if r.argClosedInCallee(ciRef, ci) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// argClosedInCallee checks if instr is a Call or Defer where val is one of
+// the arguments and the callee calls Close on the matching parameter.
+func (r *runner) argClosedInCallee(instr ssa.Instruction, val ssa.Value) bool {
+	var call ssa.CallCommon
+	switch c := instr.(type) {
+	case *ssa.Call:
+		call = c.Call
+	case *ssa.Defer:
+		call = c.Call
+	default:
+		return false
+	}
+	f, ok := call.Value.(*ssa.Function)
+	if !ok || f.Blocks == nil {
+		return false
+	}
+	argIdx := -1
+	for i, arg := range call.Args {
+		if arg == val {
+			argIdx = i
+			break
+		}
+	}
+	if argIdx < 0 || argIdx >= len(f.Params) {
+		return false
+	}
+	param := f.Params[argIdx]
+	if param.Referrers() == nil {
+		return false
+	}
+	for _, ref := range *param.Referrers() {
+		if r.isCloseCall(ref) {
+			return true
+		}
+	}
 	return false
 }
 
