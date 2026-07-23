@@ -30,6 +30,38 @@ You can enable additional checks with the `-check-consumption` flag to also veri
 $ go vet -vettool=$(which bodyclose) -check-consumption github.com/timakin/go_api/...
 ```
 
+### Handled Response Directive
+
+Use `//bodyclose:handled` on a function that fully handles every returned
+`*http.Response` body before returning:
+
+```go
+// bodyclose:handled
+func doRequest(req *http.Request, handle func([]byte) error) (*http.Response, error) {
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err := handle(body); err != nil {
+		return nil, err
+	}
+
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	return resp, nil
+}
+```
+
+Calls to an annotated function are skipped by both the close and consumption
+checks, including calls from another package.
+
+The directive works only for statically resolved function calls.
+
 #### Supported Consumption Patterns
 
 When `-check-consumption` is enabled, the following patterns are recognized as valid body consumption:
