@@ -200,6 +200,15 @@ func properResponseBodyConsumptionWithRequestBody(w http.ResponseWriter, r *http
 	io.ReadAll(resp.Body) // This is RESPONSE body consumption
 }
 
+// bodyclose:handled
+func handledResponse() (*http.Response, error) {
+	return http.Get("http://example.com")
+}
+
+func responseHandledDirectiveSkipsConsumption() {
+	_, _ = handledResponse()
+}
+
 // closeBeforeConsume is commented out because current implementation
 // doesn't detect execution order (documented limitation)
 //
