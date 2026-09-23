@@ -1,43 +1,47 @@
-linters-settings:
-  govet:
-    check-shadowing: true
-  golint:
-    min-confidence: 0
-  maligned:
-    suggest-new: true
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  misspell:
-    locale: US
-  lll:
-    line-length: 140
-  gocritic:
-    enabled-tags:
-    - performance
-    - style
-    - experimental
-    disabled-checks:
-    - wrapperFunc
+version: "2"
 
 linters:
-  enable-all: true
-  disable:
-  - maligned
-  - prealloc
-  - gochecknoglobals
-
-run:
-  skip-dirs:
-  - passes/bodyclose/testdata
-
-issues:
-  exclude-rules:
-  - text: "weak cryptographic primitive"
-    linters:
+  default: standard
+  enable:
+    - dupl
+    - gocritic
+    # TODO: Enable gocyclo after refactoring isopen.
+    # - gocyclo
     - gosec
+    - lll
+    - misspell
+    - nakedret
+    - unconvert
+    - unparam
+  settings:
+    dupl:
+      threshold: 100
+    gocritic:
+      enabled-tags:
+        - performance
+        - style
+        - experimental
+      disabled-checks:
+        - wrapperFunc
+    govet:
+      enable:
+        - shadow
+    lll:
+      line-length: 140
+    misspell:
+      locale: US
+  exclusions:
+    rules:
+      - text: weak cryptographic primitive
+        linters:
+          - gosec
+    paths:
+      - ^passes/bodyclose/testdata/
 
-service:
-  golangci-lint-version: 1.15.x # use the fixed version to not introduce new linters unexpectedly
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    paths:
+      - ^passes/bodyclose/testdata/

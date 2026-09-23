@@ -298,20 +298,22 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 				bRefs := *resRef.Referrers()
 
 				for _, bRef := range bRefs {
-					switch instr := bRef.(type) {
-					case *ssa.FieldAddr:
-						bRefs := *instr.Referrers()
-						for _, bRef := range bRefs {
-							bOp, ok := r.getBodyOp(bRef)
-							if !ok {
-								continue
-							}
-							if len(*bOp.Referrers()) == 0 {
-								return true
-							}
-							if r.isBodyProperlyHandled(bOp) {
-								return false
-							}
+					instr, ok := bRef.(*ssa.FieldAddr)
+					if !ok {
+						continue
+					}
+
+					bRefs := *instr.Referrers()
+					for _, bRef := range bRefs {
+						bOp, ok := r.getBodyOp(bRef)
+						if !ok {
+							continue
+						}
+						if len(*bOp.Referrers()) == 0 {
+							return true
+						}
+						if r.isBodyProperlyHandled(bOp) {
+							return false
 						}
 					}
 				}
@@ -340,7 +342,7 @@ func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
 	switch instr := instr.(type) {
 	case *ssa.FieldAddr:
 		if instr.X.Type().String() == r.resTyp.String() {
-			return instr.X.(ssa.Value), true
+			return instr.X, true
 		}
 	case ssa.Value:
 		if instr.Type().String() == r.resTyp.String() {
