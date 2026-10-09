@@ -455,7 +455,8 @@ func (r *runner) isConsumptionFunction(call *ssa.Call) bool {
 			if (pkg == "io" && (name == "Copy" || name == "ReadAll")) ||
 				(pkg == "io/ioutil" && name == "ReadAll") ||
 				(pkg == "encoding/json" && name == "NewDecoder") ||
-				(pkg == "bufio" && (name == "NewScanner" || name == "NewReader")) {
+				(pkg == "bufio" && (name == "NewScanner" || name == "NewReader")) ||
+				(pkg == "compress/gzip" && name == "NewReader") {
 				return true
 			}
 		}
