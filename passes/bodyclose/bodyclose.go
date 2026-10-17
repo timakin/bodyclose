@@ -177,6 +177,10 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		return false
 	}
 
+	if r.isHeadCall(call) {
+		return false
+	}
+
 	if r.responseHandledByDirective(call) {
 		return false
 	}
@@ -335,7 +339,36 @@ func (r *runner) getReqCall(instr ssa.Instruction) (*ssa.Call, bool) {
 		return nil, false
 	}
 
+	if r.isHeadCall(call) {
+		return nil, false
+	}
+
 	return call, true
+}
+
+func (r *runner) isHeadCall(call *ssa.Call) bool {
+	if call == nil {
+		return false
+	}
+	callee := call.Call.StaticCallee()
+	if callee == nil {
+		return false
+	}
+	if callee.Pkg == nil || callee.Pkg.Pkg.Path() != nethttpPath {
+		return false
+	}
+	if callee.Name() != "Head" {
+		return false
+	}
+	recv := callee.Signature.Recv()
+	if recv == nil {
+		return true
+	}
+	recvType := recv.Type()
+	if ptr, ok := recvType.(*types.Pointer); ok {
+		recvType = ptr.Elem()
+	}
+	return isNamedType(recvType, nethttpPath, "Client")
 }
 
 func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
