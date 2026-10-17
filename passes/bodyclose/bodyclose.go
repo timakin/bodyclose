@@ -181,8 +181,8 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 		return false
 	}
 
-	if len(*call.Referrers()) == 0 {
-		return true
+	if r.isHeadCall(call) {
+		return false
 	}
 
 	if instr, ok := b.Instrs[i].(*ssa.Call); ok {
@@ -194,6 +194,10 @@ func (r *runner) isopen(b *ssa.BasicBlock, i int) bool {
 				}
 			}
 		}
+	}
+
+	if len(*call.Referrers()) == 0 {
+		return true
 	}
 
 	cRefs := *call.Referrers()
@@ -337,6 +341,46 @@ func (r *runner) getReqCall(instr ssa.Instruction) (*ssa.Call, bool) {
 
 	return call, true
 }
+
+func (r *runner) isHeadCall(call *ssa.Call) bool {
+	if callee := call.Call.StaticCallee(); callee != nil {
+		if callee.Name() != "Head" {
+			return false
+		}
+		if callee.Pkg == nil || callee.Pkg.Pkg == nil {
+			return false
+		}
+		if analysisutil.RemoveVendor(callee.Pkg.Pkg.Path()) != nethttpPath {
+			return false
+		}
+		recv := callee.Signature.Recv()
+		if recv == nil {
+			return true
+		}
+		typ := recv.Type()
+		if ptr, ok := typ.(*types.Pointer); ok {
+			typ = ptr.Elem()
+		}
+		return isNamedType(typ, nethttpPath, "Client")
+	}
+
+	if call.Call.IsInvoke() {
+		method := call.Call.Method
+		if method != nil && method.Name() == "Head" {
+			sig, ok := method.Type().(*types.Signature)
+			if ok && sig.Params().Len() >= 1 && sig.Results().Len() == 2 {
+				res0 := sig.Results().At(0).Type().String()
+				res1 := sig.Results().At(1).Type().String()
+				if res0 == r.resTyp.String() && res1 == "error" {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
 
 func (r *runner) getResVal(instr ssa.Instruction) (ssa.Value, bool) {
 	switch instr := instr.(type) {

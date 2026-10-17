@@ -209,6 +209,15 @@ func responseHandledDirectiveSkipsConsumption() {
 	_, _ = handledResponse()
 }
 
+func headRequestSkipsConsumption() {
+	resp, err := http.Head("http://example.com") // OK
+	if err != nil {
+		return
+	}
+	_ = resp.StatusCode
+}
+
+
 // closeBeforeConsume is commented out because current implementation
 // doesn't detect execution order (documented limitation)
 //
