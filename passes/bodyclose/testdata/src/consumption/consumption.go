@@ -2,6 +2,7 @@ package consumption
 
 import (
 	"bufio"
+	"compress/gzip"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -78,6 +79,22 @@ func consumedWithBufioReader() {
 
 	reader := bufio.NewReader(resp.Body)
 	_, _, _ = reader.ReadLine()
+}
+
+// Pattern 7: gzip.NewReader
+func consumedWithGzipReader() {
+	resp, err := http.Get("http://example.com/") // OK - gzip.NewReader detected
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	reader, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return
+	}
+
+	reader.Close()
 }
 
 // Pattern 7: Helper function with known consumption

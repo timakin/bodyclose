@@ -72,6 +72,7 @@ When `-check-consumption` is enabled, the following patterns are recognized as v
 - `json.NewDecoder(resp.Body)`
 - `bufio.NewScanner(resp.Body)`
 - `bufio.NewReader(resp.Body)`
+- `gzip.NewReader(resp.Body)`
 
 ##### Limitations and False Positives
 
